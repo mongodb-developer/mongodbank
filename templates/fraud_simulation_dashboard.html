@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Fraud Simulation Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-center mb-4" style="color: #d9534f;">Fraud Simulation Dashboard</h1> <!-- Red for warning/fraud -->
+<div id="error-message" class="alert alert-danger d-none" role="alert"></div>
+<div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
+
+<div class="row mb-4">
+    <!-- Velocity Check Simulation -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0" style="border-left: 5px solid #d9534f;"> <!-- Red -->
+            <div class="card-body">
+                <h2 class="card-title" style="color: #d9534f;">Velocity Check Simulation</h2>
+                <p class="text-muted">Simulate multiple rapid transactions to trigger a velocity check.</p>
+                <form id="velocity-simulation-form">
+                    <div class="mb-3">
+                        <label for="account-id-velocity" class="form-label">Select Account</label>
+                        <select id="account-id-velocity" class="form-select rounded" required>
+                            {% for account in accounts %}
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transaction-amount-velocity" class="form-label">Amount</label>
+                        <input type="number" class="form-control rounded" id="transaction-amount-velocity" required min="0" step="0.01">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-danger" onclick="simulateVelocityCheck()">Simulate Velocity Check</button>
+                        <button type="button" class="btn btn-info" onclick="showCode('velocity_check')">
+                            <i class="fas fa-code"></i> Show Velocity Check Logic
+                        </button>
+                        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#velocityCheckInfoModal">
+                            <i class="fas fa-info-circle"></i> How Velocity Check Works
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Location Check Simulation -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0" style="border-left: 5px solid #d9534f;"> <!-- Red -->
+            <div class="card-body">
+                <h2 class="card-title" style="color: #d9534f;">Location Check Simulation</h2>
+                <p class="text-muted">Simulate transactions from different locations to trigger a location check.</p>
+                <form id="location-simulation-form">
+                    <div class="mb-3">
+                        <label for="account-id-location" class="form-label">Select Account</label>
+                        <select id="account-id-location" class="form-select rounded" required>
+                            {% for account in accounts %}
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transaction-amount-location" class="form-label">Amount</label>
+                        <input type="number" class="form-control rounded" id="transaction-amount-location" required min="0" step="0.01">
+                    </div>
+                    <div class="mb-3">
+                        <label for="city-location" class="form-label">City</label>
+                        <select id="city-location" class="form-select rounded" required>
+                            <option value="New York, NY, USA">New York, NY, USA</option>
+                            <option value="Los Angeles, CA, USA">Los Angeles, CA, USA</option>
+                            <option value="London, England, UK">London, England, UK</option>
+                            <option value="Tokyo, Japan">Tokyo, Japan</option>
+                            <option value="Sydney, Australia">Sydney, Australia</option>
+                        </select>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-danger" onclick="simulateLocationCheck()">Simulate Location Check</button>
+                        <button type="button" class="btn btn-info" onclick="showCode('location_check')">
+                            <i class="fas fa-code"></i> Show Location Check Logic
+                        </button>
+                        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#locationCheckInfoModal">
+                            <i class="fas fa-info-circle"></i> How Location Check Works
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add more fraud scenarios here -->
+
+<!-- Velocity Check Info Modal -->
+<div class="modal fade" id="velocityCheckInfoModal" tabindex="-1" aria-labelledby="velocityCheckInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="velocityCheckInfoModalLabel">Velocity Check Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Velocity checks monitor the frequency of transactions within a specific timeframe. If the number of transactions exceeds a predefined threshold, the system flags the activity as potentially fraudulent. This is useful for detecting suspicious rapid transaction patterns.</p>
+                <p><strong>How It Works:</strong> The system counts the number of transactions within the past hour and compares it against a threshold (e.g., 10 transactions). If the count exceeds the threshold, the transaction is flagged.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Location Check Info Modal -->
+<div class="modal fade" id="locationCheckInfoModal" tabindex="-1" aria-labelledby="locationCheckInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="locationCheckInfoModalLabel">Location Check Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Location checks verify the consistency of a transaction's location compared to previous transactions. If the location of a new transaction differs significantly from the previous location, it may be flagged as potentially fraudulent.</p>
+                <p><strong>How It Works:</strong> The system calculates the distance between the current transaction location and the previous transaction location. If the distance exceeds a threshold (e.g., 1000 km), the transaction is flagged.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/fraud_simulation.js') }}"></script>
+{% endblock %}

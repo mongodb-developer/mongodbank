@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="text-center mb-4" style="color: #00684A;">Welcome, {{ user.username }}</h1> <!-- Forest Green -->
+<div id="error-message" class="alert alert-danger d-none" role="alert"></div>
+<div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
+
+<div class="row mb-4">
+    <!-- Your Accounts -->
+    <div class="col-lg-4">
+        <div class="card mb-4 shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
+            <div class="card-body">
+                <h2 class="card-title" style="color: #00684A;">Your Accounts</h2> <!-- Forest Green -->
+                <ul class="list-group mb-3">
+                    {% for account in accounts %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center rounded">
+                        {{ account.account_type }}
+                        <span class="badge" style="background-color: #13AA52;">${{ account.balance }}</span> <!-- Evergreen -->
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-info" onclick="showCode('data_model')">
+                        <i class="fas fa-database"></i> Show Data Model
+                    </button>
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#erdModal">
+                        <i class="fas fa-project-diagram"></i> View ERD
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transactions and New Transaction -->
+    <div class="col-lg-8">
+        <div class="card mb-4 shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
+            <div class="card-body">
+                <h2 class="card-title" style="color: #00684A;">Transactions</h2> <!-- Forest Green -->
+                <select id="account-select" class="form-select mb-3 rounded">
+                    {% for account in accounts %}
+                    <option value="{{ account._id }}">{{ account.account_type }}</option>
+                    {% endfor %}
+                </select>
+                <div class="accordion" id="transactions-accordion">
+                    <!-- Transactions will be loaded here -->
+                </div>
+                <nav aria-label="Transaction pagination">
+                    <ul class="pagination">
+                        <li class="page-item"><a class="page-link" href="#" id="prev-page">Previous</a></li>
+                        <li class="page-item"><span class="page-link" id="page-info">Page 1</span></li>
+                        <li class="page-item"><a class="page-link" href="#" id="next-page">Next</a></li>
+                    </ul>
+                </nav>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-info" onclick="showCode('get_transactions')">
+                        <i class="fas fa-exchange-alt"></i> Show Get Transactions Logic
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- New Transaction -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
+            <div class="card-body">
+                <h2 class="card-title" style="color: #00684A;">New Transaction</h2> <!-- Forest Green -->
+                <form id="transaction-form">
+                    <div class="mb-3">
+                        <label for="fraud-check" class="form-label">Fraud Detection</label>
+                        <select id="fraud-check" class="form-select rounded" required>
+                            <option value="none">No Fraud Check</option>
+                            <option value="velocity">Velocity Check</option>
+                            <option value="location">Location Simulation Check</option>
+                            <!-- Add more checks as needed -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deposit-account-select" class="form-label">Select Account</label>
+                        <select id="deposit-account-select" class="form-select rounded" required>
+                            {% for account in accounts %}
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transaction-type" class="form-label">Type</label>
+                        <select id="transaction-type" class="form-select rounded" required>
+                            <option value="deposit">Deposit</option>
+                            <option value="withdrawal">Withdrawal</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transaction-amount" class="form-label">Amount</label>
+                        <input type="number" class="form-control rounded" id="transaction-amount" required min="0" step="0.01">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn" style="background-color: #13AA52; color: white;">Submit Transaction</button> <!-- Evergreen -->
+                        <button type="button" class="btn btn-info" onclick="showCode('create_transaction')">
+                            <i class="fas fa-code"></i> Show Create Transaction Logic
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Funds -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
+            <div class="card-body">
+                <h2 class="card-title" style="color: #00684A;">Transfer Funds</h2> <!-- Forest Green -->
+                <form id="transfer-form">
+                    <div class="mb-3">
+                        <label for="source-account" class="form-label">Source Account</label>
+                        <select id="source-account" class="form-select rounded" required>
+                            {% for account in accounts %}
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="destination-account" class="form-label">Destination Account</label>
+                        <select id="destination-account" class="form-select rounded" required>
+                            {% for account in accounts %}
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="transfer-amount" class="form-label">Amount</label>
+                        <input type="number" class="form-control rounded" id="transfer-amount" required min="0" step="0.01">
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn" style="background-color: #13AA52; color: white;">Transfer</button> <!-- Evergreen -->
+                        <button type="button" class="btn btn-info" onclick="showCode('transfer')">
+                            <i class="fas fa-exchange-alt"></i> Show Transfer Logic
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ERD Modal -->
+<div class="modal fade" id="erdModal" tabindex="-1" aria-labelledby="erdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="erdModalLabel">Entity-Relationship Diagram (ERD)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="{{ url_for('static', filename='images/erd.png') }}" alt="ERD of the Data Model" class="img-fluid">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Fraud Alert Modal -->
+<div class="modal fade" id="fraudAlertModal" tabindex="-1" aria-labelledby="fraudAlertModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="fraudAlertModalLabel">Fraud Detected</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="fraud-alert-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock %}
