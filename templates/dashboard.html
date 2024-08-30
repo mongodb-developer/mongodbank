@@ -190,4 +190,7 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script type="text/javascript">
+    const logoUrl = "{{ url_for('static', filename='img/banking_logo.png') }}";
+</script>
 {% endblock %}

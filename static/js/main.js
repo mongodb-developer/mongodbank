@@ -11,6 +11,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const balanceChartCtx = document.getElementById('balanceChart').getContext('2d');
     let balanceChart;
 
+    const watermarkPlugin = {
+        id: 'watermark',
+        beforeDraw: (chart) => {
+            const ctx = chart.ctx;
+            const chartArea = chart.chartArea;
+            const img = new Image();
+            img.src = logoUrl;  // Use the dynamically passed logo URL
+    
+            img.onload = () => {
+                const imgAspectRatio = img.width / img.height;
+                let imgWidth, imgHeight;
+    
+                if (chartArea.width / chartArea.height < imgAspectRatio) {
+                    // Chart area is taller than the image aspect ratio, limit by width
+                    imgWidth = chartArea.width * 0.5; // 50% of chart width
+                    imgHeight = imgWidth / imgAspectRatio;
+                } else {
+                    // Chart area is wider than the image aspect ratio, limit by height
+                    imgHeight = chartArea.height * 0.9; // 50% of chart height
+                    imgWidth = imgHeight * imgAspectRatio;
+                }
+    
+                const x = (chartArea.left + chartArea.right) / 2 - imgWidth / 2;
+                const y = (chartArea.top + chartArea.bottom) / 2 - imgHeight / 2;
+    
+                ctx.save();
+                ctx.globalAlpha = 0.2; // Set opacity of watermark
+                ctx.drawImage(img, x, y, imgWidth, imgHeight);
+                ctx.restore();
+            };
+        }
+    };
+        
+    Chart.register(watermarkPlugin); // Register the plugin with Chart.js
 
     prevPageButton.addEventListener('click', function (e) {
         e.preventDefault();

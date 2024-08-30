@@ -19,6 +19,11 @@
         }
         body {
             background-color: var(--mongodb-light);
+            background-image: url("{{ url_for('static', filename='img/banking_logo_trans.png') }}");
+            background-size: 60%;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-attachment: fixed;
         }
         .navbar {
             background-color: var(--mongodb-dark);
@@ -30,6 +35,10 @@
             background-color: var(--mongodb-green);
             border-color: var(--mongodb-green);
             color: var(--mongodb-dark);
+        }
+        .navbar-brand img {
+            height: 40px; /* Adjust this size as needed */
+            margin-right: 10px;
         }
         .btn-primary:hover {
             background-color: #00C454;
