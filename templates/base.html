@@ -17,6 +17,12 @@
             --mongodb-dark: #001E2B;
             --mongodb-light: #E8EDEB;
         }
+        .about-content {
+            background-color: rgba(255, 255, 255, 0.8); /* White with 80% opacity */
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+        }
         body {
             background-color: var(--mongodb-light);
             background-image: url("{{ url_for('static', filename='img/banking_logo_trans.png') }}");
@@ -81,6 +87,9 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('fraud_simulation_dashboard') }}">Fraud Simulation</a> <!-- New menu item -->
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('about') }}">About</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>

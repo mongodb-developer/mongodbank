@@ -71,6 +71,10 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('index'))
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
