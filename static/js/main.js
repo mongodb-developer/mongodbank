@@ -72,54 +72,61 @@ document.addEventListener('DOMContentLoaded', function () {
     // Insert the download button after the form
     statementForm.parentNode.insertBefore(downloadPdfButton, statementForm.nextSibling);
 
-    statementForm.addEventListener('submit', function (e) {
-        e.preventDefault();
+    // Update the statement generation code in main.js
 
-        const accountId = document.getElementById('account-select-statement').value;
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
+statementForm.addEventListener('submit', function (e) {
+    e.preventDefault();
 
-        fetch(`/api/statement?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`)
-            .then(response => response.json())
-            .then(statement => {
-                if (statement.transactions && statement.transactions.length > 0) {
-                    downloadPdfButton.style.display = 'block';
-                    downloadPdfButton.onclick = function () {
-                        const docDefinition = {
-                            content: [
-                                { text: 'Account Statement', style: 'header' },
-                                { text: `Account Type: ${statement.account_type}`, style: 'subheader' },
-                                { text: `Balance: $${statement.balance}`, style: 'subheader' },
-                                { text: `Statement Period: ${statement.start_date} to ${statement.end_date}`, style: 'subheader' },
-                                {
-                                    table: {
-                                        headerRows: 1,
-                                        widths: ['*', 'auto', 'auto', 'auto'],
-                                        body: [
-                                            ['Date', 'Type', 'Amount', 'Fraud Flags'],
-                                            ...statement.transactions.map(transaction => [
-                                                new Date(transaction.timestamp).toLocaleDateString(),
-                                                transaction.type,
-                                                `$${transaction.amount}`,
-                                                transaction.fraud_flags.length ? transaction.fraud_flags.join(', ') : 'None'
-                                            ])
-                                        ]
-                                    }
-                                }
-                            ]
-                        };
-                        pdfMake.createPdf(docDefinition).download(`statement_${startDate}_to_${endDate}.pdf`);
-                    };
-                } else {
-                    alert('No transactions found for the specified period.');
-                    downloadPdfButton.style.display = 'none';
-                }
-            })
-            .catch(error => {
-                console.error('Error generating statement:', error);
-                alert('Failed to generate statement.');
-            });
-    });
+    const accountId = document.getElementById('statement-account-select').value;
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+
+    fetch(`/api/statement?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`)
+        .then(response => response.json())
+        .then(statement => {
+            if (statement.transactions && statement.transactions.length > 0) {
+                // Display the statement data
+                const statementResult = document.getElementById('statement-result');
+                statementResult.innerHTML = `
+                    <h3>Statement Summary</h3>
+                    <p>Account Type: ${statement.account_type || 'N/A'}</p>
+                    <p>Balance: $${statement.balance !== undefined ? statement.balance.toFixed(2) : 'N/A'}</p>
+                    <p>Period: ${statement.start_date || 'N/A'} to ${statement.end_date || 'N/A'}</p>
+                    <h4>Transactions</h4>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Amount</th>
+                                <th>Fraud Flags</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${statement.transactions.map(transaction => `
+                                <tr>
+                                    <td>${transaction.timestamp ? new Date(transaction.timestamp).toLocaleDateString() : 'N/A'}</td>
+                                    <td>${transaction.type || 'N/A'}</td>
+                                    <td>$${transaction.amount !== undefined ? transaction.amount.toFixed(2) : 'N/A'}</td>
+                                    <td>${transaction.fraud_flags && transaction.fraud_flags.length ? transaction.fraud_flags.join(', ') : 'None'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                // Show the download button
+                downloadPdfButton.style.display = 'block';
+            } else {
+                alert('No transactions found for the specified period.');
+                downloadPdfButton.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error generating statement:', error);
+            alert('Failed to generate statement. Please check the console for more details.');
+        });
+});
 
     if (accountSelect) {
         accountSelect.addEventListener('change', function () {
