@@ -3,7 +3,6 @@
 {% block title %}{% endblock %}
 
 {% block content %}
-<h1 class="text-center mb-4" style="color: #d9534f;">Fraud Simulation Dashboard</h1> <!-- Red for warning/fraud -->
 <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
 <div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
 
@@ -123,4 +122,53 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/fraud_simulation.js') }}"></script>
+<script>
+ 
+    function loadTransactions(accountId) {
+        fetch(`/api/transactions?account_id=${accountId}`)
+            .then(response => response.json())
+            .then(transactions => {
+                const transactionsList = document.getElementById('transactions-list');
+                if (transactionsList) {
+                    transactionsList.innerHTML = transactions.map(transaction => {
+                        let fraudFlag = transaction.fraud_flags && transaction.fraud_flags.length > 0;
+                        return `
+                            <li class="list-group-item d-flex justify-content-between align-items-center rounded ${fraudFlag ? 'bg-warning' : ''}">
+                                ${transaction.type}: $${transaction.amount}
+                                ${fraudFlag ? '<span class="badge bg-danger">Fraud Detected</span>' : ''}
+                                <small class="text-muted">${new Date(transaction.timestamp).toLocaleString()}</small>
+                            </li>
+                        `;
+                    }).join('');
+                } else {
+                    console.error('Transactions list not found in the DOM.');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading transactions:', error);
+            });
+    }
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const velocityForm = document.getElementById('velocity-simulation-form');
+        if (velocityForm) {
+            velocityForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                clearError();
+                simulateVelocityCheck();
+            });
+        }
+    
+        const locationForm = document.getElementById('location-simulation-form');
+        if (locationForm) {
+            locationForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                clearError();
+                simulateLocationCheck();
+            });
+        }
+    });
+    
+</script
+
 {% endblock %}

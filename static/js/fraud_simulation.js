@@ -37,7 +37,6 @@ function simulateLocationCheck() {
     performTransaction(accountId, amount, 'location', { latitude: lat, longitude: lon });
 }
 
-
 // Function to show an error message
 function showError(message) {
     const errorMessageDiv = document.getElementById('error-message');
@@ -57,13 +56,6 @@ function showFraudWarning(message) {
     const fraudWarningDiv = document.getElementById('fraud-warning');
     fraudWarningDiv.textContent = message;
     fraudWarningDiv.classList.remove('d-none');
-}
-
-// Function to clear the fraud warning
-function clearFraudWarning() {
-    const fraudWarningDiv = document.getElementById('fraud-warning');
-    fraudWarningDiv.textContent = '';
-    fraudWarningDiv.classList.add('d-none');
 }
 
 function clearFraudWarning() {
@@ -97,33 +89,15 @@ function performTransaction(accountId, amount, fraudCheck, location = null) {
             if (data.fraud_flags && data.fraud_flags.length > 0) {
                 message += `\nFraud checks triggered: ${data.fraud_flags.join(', ')}`;
                 showFraudWarning('Warning: Fraud detection triggered! Please review the transaction details.');
+            } else {
+                showFraudWarning('Note: No fraud detected.');
             }
-            // Update the UI based on the response
-            loadTransactions(accountId);
         }
     })
     .catch(error => {
         console.error('Error:', error);
         showError('Transaction failed');
     });
-}
-
-function loadTransactions(accountId) {
-    fetch(`/api/transactions?account_id=${accountId}`)
-        .then(response => response.json())
-        .then(transactions => {
-            const transactionsList = document.getElementById('transactions-list');
-            transactionsList.innerHTML = transactions.map(transaction => {
-                let fraudFlag = transaction.fraud_flags && transaction.fraud_flags.length > 0;
-                return `
-                    <li class="list-group-item d-flex justify-content-between align-items-center rounded ${fraudFlag ? 'bg-warning' : ''}">
-                        ${transaction.type}: $${transaction.amount}
-                        ${fraudFlag ? '<span class="badge bg-danger">Fraud Detected</span>' : ''}
-                        <small class="text-muted">${new Date(transaction.timestamp).toLocaleString()}</small>
-                    </li>
-                `;
-            }).join('');
-        });
 }
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -90,6 +90,22 @@ def get_account(account_id):
         })
     else:
         return jsonify({'error': 'Account not found'}), 404
+    
+@app.route('/api/transaction/<transaction_id>', methods=['GET'])
+def get_transaction(transaction_id):
+    transaction = db.transactions.find_one({"_id": ObjectId(transaction_id)})
+    if transaction:
+        transaction['_id'] = str(transaction['_id'])
+        return jsonify({
+            'account_type': transaction.get('type'),
+            'amount': transaction.get('amount'),
+            'from_account': transaction.get('from_account'),
+            'to_account': transaction.get('to_account'),
+            'amount': transaction.get('amount'),
+            'fraud': transaction.get('fraud_flags', [])
+        })
+    else:
+        return jsonify({'error': 'Account not found'}), 404
 
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
@@ -102,7 +118,7 @@ def get_transactions():
             return jsonify({'error': 'No account ID provided'}), 400
 
         page = int(request.args.get('page', 1))  # Default to page 1
-        limit = int(request.args.get('limit', 10))  # Default to 10 items per page
+        limit = int(request.args.get('limit', 6))  # Default to 10 items per page
         skip = (page - 1) * limit
 
         try:
@@ -167,7 +183,7 @@ def create_transaction():
         return jsonify({'error': 'Insufficient funds'}), 400
     
     new_balance = account['balance'] + amount if data['type'] == 'deposit' else account['balance'] - amount
-    timestamp = datetime.datetime.now(datetime.UTC)
+    timestamp = datetime.now(timezone.utc)  # Correctly getting the current UTC time
     
     # Initialize fraud flags
     fraud_flags = []
@@ -576,6 +592,52 @@ def generate_pdf_statement():
         app.logger.error(f"Error generating PDF statement: {str(e)}")
         app.logger.error(traceback.format_exc())  # This will log the full stack trace
         return jsonify({'error': 'An error occurred while generating the PDF statement'}), 500
+    
+@app.route('/api/review_transactions', methods=['GET'])
+def get_review_transactions():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    transactions = list(mongo.db.transactions.find({
+        'fraud_flags': {'$exists': True, '$ne': []},
+        'reviewed': False
+    }))
+    
+    for transaction in transactions:
+        transaction['_id'] = str(transaction['_id'])
+        transaction['account_id'] = str(transaction['account_id'])
+        transaction['timestamp'] = transaction['timestamp'].isoformat()
+    
+    return jsonify(transactions), 200
+
+@app.route('/api/review_transaction', methods=['POST'])
+def review_transaction():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.json
+    transaction_id = data.get('transaction_id')
+    review_status = data.get('review_status')  # "legitimate" or "fraudulent"
+    
+    if not transaction_id or review_status not in ['legitimate', 'fraudulent']:
+        return jsonify({'error': 'Invalid input'}), 400
+
+    update_data = {
+        'reviewed': True,
+        'review_status': review_status
+    }
+
+    # If the transaction is reviewed as legitimate, clear the fraud flags
+    if review_status == 'legitimate':
+        update_data['fraud_flags'] = []  # Clear the fraud flags
+
+    mongo.db.transactions.update_one(
+        {'_id': ObjectId(transaction_id)},
+        {'$set': update_data}
+    )
+    
+    return jsonify({'success': True}), 200
+
     
 if __name__ == '__main__':
     app.run(debug=True)

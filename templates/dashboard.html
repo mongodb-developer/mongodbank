@@ -5,13 +5,9 @@
 {% block content %}
 <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
 <div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
-<button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#erdModal">
-    <i class="fas fa-project-diagram"></i> View ERD
-</button>
 <div class="row mb-4">
     <!-- Your Accounts -->
-    <div class="col-lg-4">
-
+    <div class="col-lg-6">
         <div class="card mb-4 shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
             <div class="card-body">
                 <h2 class="card-title" style="color: #00684A;">Your Accounts</h2> <!-- Forest Green -->
@@ -35,8 +31,8 @@
         </div>
     </div>
 
-    <!-- Transactions and New Transaction -->
-    <div class="col-lg-8">
+    <!-- Transactions -->
+    <div class="col-lg-6">
         <div class="card mb-4 shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
             <div class="card-body">
                 <h2 class="card-title" style="color: #00684A;">Transactions</h2> <!-- Forest Green -->
@@ -46,7 +42,6 @@
                     {% endfor %}
                 </select>
                 <canvas id="balanceChart" width="400" height="200"></canvas>
-
                 <div class="accordion" id="transactions-accordion">
                     <!-- Transactions will be loaded here -->
                 </div>
@@ -67,9 +62,9 @@
     </div>
 </div>
 
-<div class="row">
+<div class="row mb-4">
     <!-- New Transaction -->
-    <div class="col-md-6 mb-4">
+    <div class="col-lg-6">
         <div class="card shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
             <div class="card-body">
                 <h2 class="card-title" style="color: #00684A;">New Transaction</h2> <!-- Forest Green -->
@@ -114,7 +109,7 @@
     </div>
 
     <!-- Transfer Funds -->
-    <div class="col-md-6 mb-4">
+    <div class="col-lg-6">
         <div class="card shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
             <div class="card-body">
                 <h2 class="card-title" style="color: #00684A;">Transfer Funds</h2> <!-- Forest Green -->
@@ -149,7 +144,11 @@
             </div>
         </div>
     </div>
-    <div class="col-md-6 mb-4">
+</div>
+
+<div class="row mb-4">
+    <!-- Generate Statement -->
+    <div class="col-lg-12">
         <div class="card mb-4 shadow-sm border-0">
             <div class="card-body">
                 <h2 class="card-title" style="color: #00684A;">Generate Statement</h2>
@@ -182,8 +181,7 @@
         </div>
     </div>
 </div>
-    
-</div>
+
 <!-- Fraud Alert Modal -->
 <div class="modal fade" id="fraudAlertModal" tabindex="-1" aria-labelledby="fraudAlertModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -215,6 +213,25 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Review Fraud Transaction Modal -->
+<div class="modal fade" id="reviewFraudModal" tabindex="-1" aria-labelledby="reviewFraudModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="reviewFraudModalLabel">Review Fraudulent Transaction</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="fraud-transaction-details"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" onclick="submitReview('legitimate')">Legitimate</button>
+                <button type="button" class="btn btn-danger" onclick="submitReview('fraudulent')">Fraudulent</button>
             </div>
         </div>
     </div>
