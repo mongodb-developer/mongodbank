@@ -3,7 +3,6 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<h1 class="text-center mb-4" style="color: #00684A;">Welcome, {{ user.username }}</h1> <!-- Forest Green -->
 <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
 <div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
 <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#erdModal">
@@ -150,6 +149,40 @@
             </div>
         </div>
     </div>
+    <div class="col-md-6 mb-4">
+        <div class="card mb-4 shadow-sm border-0">
+            <div class="card-body">
+                <h2 class="card-title" style="color: #00684A;">Generate Statement</h2>
+                <form id="statement-form">
+                    <div class="mb-3">
+                        <label for="statement-account-select" class="form-label">Select Account</label>
+                        <select id="statement-account-select" class="form-select rounded" required>
+                            {% for account in accounts %}
+                            <option value="{{ account._id }}">{{ account.account_type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="start-date" class="form-label">Start Date</label>
+                        <input type="date" class="form-control rounded" id="start-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="end-date" class="form-label">End Date</label>
+                        <input type="date" class="form-control rounded" id="end-date" required>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn" style="background-color: #13AA52; color: white;">Generate Statement</button>
+                        <button type="button" id="download-pdf" class="btn btn-info" style="display: none;">
+                            <i class="fas fa-file-pdf"></i> Download PDF
+                        </button>
+                    </div>
+                </form>
+                <div id="statement-result" class="mt-4"></div>
+            </div>
+        </div>
+    </div>
+</div>
+    
 </div>
 <!-- Fraud Alert Modal -->
 <div class="modal fade" id="fraudAlertModal" tabindex="-1" aria-labelledby="fraudAlertModalLabel" aria-hidden="true">

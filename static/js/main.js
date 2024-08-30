@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const pageInfo = document.getElementById('page-info');
     const prevPageButton = document.getElementById('prev-page');
     const nextPageButton = document.getElementById('next-page');
-    const limit = 10; 
+    const limit = 10;
     const balanceChartCtx = document.getElementById('balanceChart').getContext('2d');
     let balanceChart;
 
@@ -18,11 +18,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const chartArea = chart.chartArea;
             const img = new Image();
             img.src = logoUrl;  // Use the dynamically passed logo URL
-    
+
             img.onload = () => {
                 const imgAspectRatio = img.width / img.height;
                 let imgWidth, imgHeight;
-    
+
                 if (chartArea.width / chartArea.height < imgAspectRatio) {
                     // Chart area is taller than the image aspect ratio, limit by width
                     imgWidth = chartArea.width * 0.5; // 50% of chart width
@@ -32,18 +32,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     imgHeight = chartArea.height * 0.9; // 50% of chart height
                     imgWidth = imgHeight * imgAspectRatio;
                 }
-    
+
                 const x = (chartArea.left + chartArea.right) / 2 - imgWidth / 2;
                 const y = (chartArea.top + chartArea.bottom) / 2 - imgHeight / 2;
-    
+
                 ctx.save();
                 ctx.globalAlpha = 0.2; // Set opacity of watermark
                 ctx.drawImage(img, x, y, imgWidth, imgHeight);
                 ctx.restore();
             };
         }
-    };
+    
         
+
+    };
+
     Chart.register(watermarkPlugin); // Register the plugin with Chart.js
 
     prevPageButton.addEventListener('click', function (e) {
@@ -113,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 data.transactions.forEach((transaction, index) => {
                     const fraudFlag = transaction.fraud_flags && transaction.fraud_flags.length > 0;
-    
+
                     const transactionItem = `
                         <div class="accordion-item">
                             <h2 class="accordion-header" id="heading-${index}">
@@ -159,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     `;
                     transactionsAccordion.innerHTML += transactionItem;
                 });
-    
+
                 // Update pagination information
                 document.getElementById('page-info').textContent = `Page ${data.page} of ${data.total_pages}`;
             })
@@ -168,10 +171,70 @@ document.addEventListener('DOMContentLoaded', function () {
                 showError('Failed to load transactions.');
             });
     }
-    
-    
-    
-    
+
+
+    const statementForm = document.getElementById('statement-form');
+    const downloadPdfButton = document.createElement('button');
+    downloadPdfButton.type = 'button';
+    downloadPdfButton.id = 'download-pdf';
+    downloadPdfButton.className = 'btn btn-info mt-2';
+    downloadPdfButton.innerHTML = '<i class="fas fa-file-pdf"></i> Download PDF';
+    downloadPdfButton.style.display = 'none';
+
+    // Insert the download button after the form
+    statementForm.parentNode.insertBefore(downloadPdfButton, statementForm.nextSibling);
+
+    statementForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const accountId = document.getElementById('statement-account-select').value;
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+
+        fetch(`/api/statement?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log("API response:", data);  // Debugging line
+            if (data.error) {
+                alert(data.error);
+            } else {
+                displayStatement(data);
+                downloadPdfButton.style.display = 'block';  // Show the download button
+                // Store the statement parameters for PDF download
+                downloadPdfButton.dataset.accountId = accountId;
+                downloadPdfButton.dataset.startDate = startDate;
+                downloadPdfButton.dataset.endDate = endDate;
+            }
+        })
+        .catch(error => {
+            console.error('Error generating statement:', error);
+            alert('Failed to generate statement');
+        });
+    });
+
+    downloadPdfButton.addEventListener('click', function() {
+        const accountId = this.dataset.accountId;
+        const startDate = this.dataset.startDate;
+        const endDate = this.dataset.endDate;
+
+        fetch(`/api/generate_pdf_statement?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `statement_${startDate}_to_${endDate}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                console.error('Error downloading PDF:', error);
+                alert('Failed to download PDF statement');
+            });
+    });
+
 
     if (accountSelect) {
         accountSelect.addEventListener('change', function () {
@@ -182,14 +245,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (transactionForm) {
-        transactionForm.addEventListener('submit', function(e) {
+        transactionForm.addEventListener('submit', function (e) {
             e.preventDefault();
-            
+
             const accountId = document.getElementById('account-select').value;
             const type = document.getElementById('transaction-type').value;
             const amount = document.getElementById('transaction-amount').value;
             const fraudCheck = document.getElementById('fraud-check').value;  // Get fraud check type
-    
+
             fetch('/api/transaction', {
                 method: 'POST',
                 headers: {
@@ -197,43 +260,43 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 body: JSON.stringify({ account_id: accountId, type, amount, fraud_check: fraudCheck }),
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert(data.error);
-                } else {
-                    alert('Transaction successful');
-                    if (data.fraud_flags.length > 0) {
-                        alert('Fraud checks triggered: ' + data.fraud_flags.join(', '));
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                    } else {
+                        alert('Transaction successful');
+                        if (data.fraud_flags.length > 0) {
+                            alert('Fraud checks triggered: ' + data.fraud_flags.join(', '));
+                        }
+                        loadTransactions(accountId);
+                        // Update account balance
+                        const accountItem = document.querySelector(`#account-select option[value="${accountId}"]`);
+                        if (accountItem) {
+                            accountItem.textContent = `${accountItem.textContent.split('-')[0]} - $${data.new_balance.toFixed(2)}`;
+                        }
                     }
-                    loadTransactions(accountId);
-                    // Update account balance
-                    const accountItem = document.querySelector(`#account-select option[value="${accountId}"]`);
-                    if (accountItem) {
-                        accountItem.textContent = `${accountItem.textContent.split('-')[0]} - $${data.new_balance.toFixed(2)}`;
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Transaction failed');
-            });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Transaction failed');
+                });
         });
     }
 
 
     if (transferForm) {
-        transferForm.addEventListener('submit', function(e) {
+        transferForm.addEventListener('submit', function (e) {
             e.preventDefault();
-    
+
             const sourceAccountId = document.getElementById('source-account').value;
             const destinationAccountId = document.getElementById('destination-account').value;
             const amount = parseFloat(document.getElementById('transfer-amount').value);
-    
+
             console.log("Source Account ID:", sourceAccountId);
             console.log("Destination Account ID:", destinationAccountId);
             console.log("Amount:", amount);
-    
+
             fetch('/transfer', {
                 method: 'POST',
                 headers: {
@@ -245,22 +308,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     amount: amount
                 }),
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert('Error: ' + data.error);
-                } else {
-                    alert('Transfer successful!');
-                    // Refresh the UI to show the updated balances
-                    updateAccountBalances(sourceAccountId, destinationAccountId);
-                    loadTransactions(sourceAccountId);
-                    loadTransactions(destinationAccountId);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Transfer failed');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                    } else {
+                        alert('Transfer successful!');
+                        // Refresh the UI to show the updated balances
+                        updateAccountBalances(sourceAccountId, destinationAccountId);
+                        loadTransactions(sourceAccountId);
+                        loadTransactions(destinationAccountId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Transfer failed');
+                });
         });
     }
     function updateAccountBalances(sourceAccountId, destinationAccountId) {
@@ -279,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error('Error:', error);
                 alert('Failed to update source account balance.');
             });
-    
+
         // Fetch and update the destination account balance
         fetch(`/api/accounts/${destinationAccountId}`)
             .then(response => {
@@ -296,6 +359,65 @@ document.addEventListener('DOMContentLoaded', function () {
                 alert('Failed to update destination account balance.');
             });
     }
-    
 
+    document.getElementById('statement-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const accountId = document.getElementById('statement-account-select').value;
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+
+        fetch(`/api/statement?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log("API response:", data);  // Debugging line
+            if (data.error) {
+                alert(data.error);
+            } else {
+                displayStatement(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error generating statement:', error);
+            alert('Failed to generate statement');
+        });
+    });
+
+    function displayStatement(data) {
+        console.log("Received statement data:", data);  // Debugging line
+
+        const statementResultDiv = document.getElementById('statement-result');
+        statementResultDiv.innerHTML = `
+            <h3>${data.account_type} Statement</h3>
+            <p><strong>Balance:</strong> $${data.balance.toFixed(2)}</p>
+            <p><strong>Period:</strong> ${new Date(data.start_date).toLocaleDateString()} to ${new Date(data.end_date).toLocaleDateString()}</p>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>From Account</th>
+                        <th>To Account</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.transactions.map(transaction => `
+                        <tr>
+                            <td>${new Date(transaction.timestamp).toLocaleString()}</td>
+                            <td>${transaction.type}</td>
+                            <td>$${transaction.amount}</td>
+                            <td>${transaction.from_account_name || '-'}</td>
+                            <td>${transaction.to_account_name || '-'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+
+        if (data.transactions.length === 0) {
+            console.warn("No transactions found for the specified period.");
+            statementResultDiv.innerHTML += `<p>No transactions found for the specified period.</p>`;
+        }
+    }
 });

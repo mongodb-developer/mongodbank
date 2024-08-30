@@ -1,18 +1,31 @@
 import inspect
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response, jsonify, session, request
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 from passlib.hash import scrypt
 from config import Config
 import datetime
+from bson import ObjectId
+import traceback
+
 from urllib.parse import urlparse
 from flask import jsonify
 from flask_cors import CORS
+import pymongo 
+
 from pymongo import MongoClient, WriteConcern, ReadPreference, errors
 from pymongo.read_concern import ReadConcern
 import math
+from datetime import datetime, timedelta, timezone
 
 import logging
+logging.basicConfig(level=logging.INFO)
+
 app = Flask(__name__)
 app.config.from_object(Config)
 CORS(app)
@@ -99,7 +112,7 @@ def get_transactions():
             return jsonify({'error': 'Invalid account ID format'}), 400
 
         transactions = list(mongo.db.transactions.find({'account_id': account_object_id})
-                            .sort('timestamp', -1)
+                            .sort('timestamp', pymongo.DESCENDING)
                             .skip(skip)
                             .limit(limit))
 
@@ -116,7 +129,7 @@ def get_transactions():
                 to_account = mongo.db.accounts.find_one({"_id": ObjectId(transaction['to_account'])})
                 if to_account:
                     transaction['to_account_name'] = to_account['account_type']
-            if isinstance(transaction['timestamp'], datetime.datetime):
+            if isinstance(transaction['timestamp'], datetime):
                 transaction['timestamp'] = transaction['timestamp'].isoformat()
 
         total_transactions = mongo.db.transactions.count_documents({'account_id': account_object_id})
@@ -395,5 +408,174 @@ def calculate_distance(location1, location2):
     distance = R * c
     return distance
 
+from bson import ObjectId
+from bson.json_util import dumps
+import json
+
+from bson import ObjectId
+from bson.json_util import dumps
+import json
+from datetime import datetime, timezone, timedelta
+
+@app.route('/api/statement', methods=['GET'])
+def generate_statement():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    account_id = request.args.get('account_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    # Convert start and end dates to UTC timezone-aware datetimes
+    start_datetime = datetime.fromisoformat(f"{start_date}T00:00:00").replace(tzinfo=timezone.utc)
+    end_datetime = datetime.fromisoformat(f"{end_date}T23:59:59").replace(tzinfo=timezone.utc)
+ 
+    try:
+        account_object_id = ObjectId(account_id)
+        account = mongo.db.accounts.find_one({'_id': account_object_id, 'customer_id': ObjectId(session['user_id'])})
+        if not account:
+            logging.error(f"Account not found for account_id: {account_id}")
+            return jsonify({'error': 'Account not found'}), 404
+
+        logging.info(f"Fetching transactions for account_id: {account_id} from {start_datetime} to {end_datetime}")
+
+        # More flexible date query
+        query = {
+            'account_id': account_object_id,
+            '$or': [
+                {'timestamp': {'$gte': start_datetime, '$lte': end_datetime}},
+                {'timestamp': {'$gte': start_datetime.isoformat(), '$lte': end_datetime.isoformat()}},
+            ]
+        }
+
+        transactions = list(mongo.db.transactions.find(query).sort('timestamp', pymongo.DESCENDING))
+     
+        logging.info(f"Found {len(transactions)} transactions")
+        
+        # Log a sample transaction if available
+        if transactions:
+            logging.info(f"Sample transaction: {transactions[0]}")
+        else:
+            logging.info("No transactions found. Checking for any transactions in the collection.")
+            sample_transaction = mongo.db.transactions.find_one()
+            if sample_transaction:
+                logging.info(f"Sample transaction from collection: {sample_transaction}")
+            else:
+                logging.info("No transactions found in the collection at all.")
+
+        # Prepare the statement data
+        statement = {
+            'account_type': account.get('account_type'),
+            'balance': account.get('balance'),
+            'transactions': transactions,
+            'start_date': start_date,
+            'end_date': end_date,
+        }
+
+        # Use json_util to handle MongoDB-specific types
+        json_statement = json.loads(dumps(statement))
+
+        # Further process the transactions if needed
+        for transaction in json_statement['transactions']:
+            if 'timestamp' in transaction:
+                if isinstance(transaction['timestamp'], dict) and '$date' in transaction['timestamp']:
+                    transaction['timestamp'] = datetime.fromisoformat(transaction['timestamp']['$date']).isoformat()
+                elif isinstance(transaction['timestamp'], str):
+                    # If it's already a string, we'll assume it's in ISO format
+                    pass
+                else:
+                    logging.warning(f"Unexpected timestamp format: {transaction['timestamp']}")
+
+        return jsonify(json_statement), 200
+ 
+    except Exception as e:
+        logging.error(f"Error generating statement: {e}")
+        return jsonify({'error': 'An error occurred while generating the statement'}), 500
+    
+@app.route('/api/generate_pdf_statement', methods=['GET'])
+def generate_pdf_statement():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    account_id = request.args.get('account_id')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+
+    try:
+        account_object_id = ObjectId(account_id)
+        account = mongo.db.accounts.find_one({'_id': account_object_id, 'customer_id': ObjectId(session['user_id'])})
+        if not account:
+            return jsonify({'error': 'Account not found'}), 404
+
+        transactions = list(mongo.db.transactions.find({
+            'account_id': account_object_id,
+            'timestamp': {
+                '$gte': start_date,
+                '$lte': end_date
+            }
+        }).sort('timestamp', pymongo.DESCENDING))
+
+        # Create a PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        elements = []
+
+        # Add title
+        styles = getSampleStyleSheet()
+        elements.append(Paragraph(f"Account Statement", styles['Title']))
+        elements.append(Paragraph(f"Account Type: {account['account_type']}", styles['Normal']))
+        elements.append(Paragraph(f"Balance: ${account['balance']:.2f}", styles['Normal']))
+        elements.append(Paragraph(f"From: {start_date} To: {end_date}", styles['Normal']))
+
+        # Add transactions table
+        data = [['Date', 'Type', 'Amount']]
+        for transaction in transactions:
+            # Parse the timestamp string into a datetime object
+            timestamp = datetime.fromisoformat(transaction['timestamp'].replace('Z', '+00:00'))
+            data.append([
+                timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                transaction['type'],
+                f"${transaction['amount']:.2f}",
+                transaction.get('from_account_name', '-'),
+                transaction.get('to_account_name', '-')
+            ])
+
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 14),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 12),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+
+        elements.append(table)
+
+        # Generate PDF
+        doc.build(elements)
+
+        # Prepare response
+        pdf = buffer.getvalue()
+        buffer.close()
+        response = make_response(pdf)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=statement_{start_date}_to_{end_date}.pdf'
+
+        return response
+
+    except Exception as e:
+        app.logger.error(f"Error generating PDF statement: {str(e)}")
+        app.logger.error(traceback.format_exc())  # This will log the full stack trace
+        return jsonify({'error': 'An error occurred while generating the PDF statement'}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True)
