@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const prevPageButton = document.getElementById('prev-page');
     const nextPageButton = document.getElementById('next-page');
     const limit = 10; 
-
+    const balanceChartCtx = document.getElementById('balanceChart').getContext('2d');
+    let balanceChart;
 
 
     prevPageButton.addEventListener('click', function (e) {
@@ -25,41 +26,115 @@ document.addEventListener('DOMContentLoaded', function () {
         loadTransactions(accountSelect.value, currentPage, limit);
     });
 
-    function loadTransactions(accountId) {
-        fetch(`/api/transactions?account_id=${accountId}`)
+    function loadTransactions(accountId, page = 1) {
+        fetch(`/api/transactions?account_id=${accountId}&page=${page}`)
             .then(response => response.json())
             .then(data => {
-                const transactionsAccordion = document.getElementById('transactions-accordion');
-                transactionsAccordion.innerHTML = '';  // Clear existing content
+                const transactions = data.transactions;
+                const labels = transactions.map(transaction => new Date(transaction.timestamp).toLocaleDateString());
 
+                const transactionsAccordion = document.getElementById('transactions-accordion');
+                transactionsAccordion.innerHTML = ''; // Clear existing content
+                const balances = transactions.reduce((acc, transaction) => {
+                    const lastBalance = acc.length ? acc[acc.length - 1] : transaction.amount;
+                    const newBalance = transaction.type === 'deposit'
+                        ? lastBalance + transaction.amount
+                        : lastBalance - transaction.amount;
+                    acc.push(newBalance);
+                    return acc;
+                }, []);
+
+                if (balanceChart) {
+                    balanceChart.destroy(); // Destroy the old chart before creating a new one
+                }
+
+                balanceChart = new Chart(balanceChartCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels.reverse(),
+                        datasets: [{
+                            label: 'Account Balance Over Time',
+                            data: balances.reverse(),
+                            fill: false,
+                            borderColor: 'rgba(0, 168, 64, 0.7)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Date'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Balance ($)'
+                                }
+                            }
+                        }
+                    }
+                });
                 data.transactions.forEach((transaction, index) => {
                     const fraudFlag = transaction.fraud_flags && transaction.fraud_flags.length > 0;
-                    const accordionItem = `
+    
+                    const transactionItem = `
                         <div class="accordion-item">
-                            <h2 class="accordion-header" id="heading${index}">
-                                <button class="accordion-button ${index > 0 ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}" aria-expanded="${index === 0}" aria-controls="collapse${index}">
-                                    ${transaction.type}: $${transaction.amount} ${fraudFlag ? '<span class="badge bg-danger ms-2">Fraud Detected</span>' : ''}
-                                    <small class="text-muted ms-auto">${new Date(transaction.timestamp).toLocaleString()}</small>
+                            <h2 class="accordion-header" id="heading-${index}">
+                                <button class="accordion-button ${index > 0 ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}" aria-expanded="${index === 0}" aria-controls="collapse-${index}">
+                                    ${transaction.type}: $${transaction.amount} <small class="text-muted ms-3">${new Date(transaction.timestamp).toLocaleString()}</small>
+                                    ${fraudFlag ? '<span class="badge bg-danger ms-auto">Fraud Detected</span>' : ''}
                                 </button>
                             </h2>
-                            <div id="collapse${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="heading${index}" data-bs-parent="#transactions-accordion">
+                            <div id="collapse-${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="heading-${index}" data-bs-parent="#transactions-accordion">
                                 <div class="accordion-body">
-                                    <p><strong>Transaction ID:</strong> ${transaction._id}</p>
-                                    <p><strong>Type:</strong> ${transaction.type}</p>
-                                    <p><strong>Amount:</strong> $${transaction.amount}</p>
-                                    <p><strong>Date:</strong> ${new Date(transaction.timestamp).toLocaleString()}</p>
-                                    <p><strong>Account ID:</strong> ${transaction.account_id}</p>
-                                    ${transaction.from_account_name ? `<p><strong>From Account:</strong> ${transaction.from_account_name}</p>` : ''}
-                                    ${transaction.to_account_name ? `<p><strong>To Account:</strong> ${transaction.to_account_name}</p>` : ''}
-                                    ${fraudFlag ? `<p><strong>Fraud Detected:</strong> ${transaction.fraud_flags.join(', ')}</p>` : ''}
+                                    <table class="table table-striped">
+                                        <tr>
+                                            <th>Type</th>
+                                            <td>${transaction.type}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Amount</th>
+                                            <td>$${transaction.amount}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Date</th>
+                                            <td>${new Date(transaction.timestamp).toLocaleString()}</td>
+                                        </tr>
+                                        ${transaction.from_account_name ? `
+                                        <tr>
+                                            <th>From Account</th>
+                                            <td>${transaction.from_account_name}</td>
+                                        </tr>` : ''}
+                                        ${transaction.to_account_name ? `
+                                        <tr>
+                                            <th>To Account</th>
+                                            <td>${transaction.to_account_name}</td>
+                                        </tr>` : ''}
+                                        ${fraudFlag ? `
+                                        <tr>
+                                            <th>Fraud Flags</th>
+                                            <td>${transaction.fraud_flags.join(', ')}</td>
+                                        </tr>` : ''}
+                                    </table>
                                 </div>
                             </div>
                         </div>
                     `;
-                    transactionsAccordion.innerHTML += accordionItem;
+                    transactionsAccordion.innerHTML += transactionItem;
                 });
+    
+                // Update pagination information
+                document.getElementById('page-info').textContent = `Page ${data.page} of ${data.total_pages}`;
+            })
+            .catch(error => {
+                console.error('Error loading transactions:', error);
+                showError('Failed to load transactions.');
             });
     }
+    
     
     
     

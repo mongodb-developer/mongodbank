@@ -6,10 +6,13 @@
 <h1 class="text-center mb-4" style="color: #00684A;">Welcome, {{ user.username }}</h1> <!-- Forest Green -->
 <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
 <div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
-
+<button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#erdModal">
+    <i class="fas fa-project-diagram"></i> View ERD
+</button>
 <div class="row mb-4">
     <!-- Your Accounts -->
     <div class="col-lg-4">
+
         <div class="card mb-4 shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
             <div class="card-body">
                 <h2 class="card-title" style="color: #00684A;">Your Accounts</h2> <!-- Forest Green -->
@@ -43,6 +46,8 @@
                     <option value="{{ account._id }}">{{ account.account_type }}</option>
                     {% endfor %}
                 </select>
+                <canvas id="balanceChart" width="400" height="200"></canvas>
+
                 <div class="accordion" id="transactions-accordion">
                     <!-- Transactions will be loaded here -->
                 </div>
@@ -146,24 +151,6 @@
         </div>
     </div>
 </div>
-
-<!-- ERD Modal -->
-<div class="modal fade" id="erdModal" tabindex="-1" aria-labelledby="erdModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="erdModalLabel">Entity-Relationship Diagram (ERD)</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img src="{{ url_for('static', filename='images/erd.png') }}" alt="ERD of the Data Model" class="img-fluid">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
 <!-- Fraud Alert Modal -->
 <div class="modal fade" id="fraudAlertModal" tabindex="-1" aria-labelledby="fraudAlertModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -177,6 +164,24 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ERD Modal -->
+<div class="modal fade" id="erdModal" tabindex="-1" aria-labelledby="erdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="erdModalLabel">Entity-Relationship Diagram (ERD)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="{{ url_for('static', filename='img/erd.svg') }}" alt="ERD of the Data Model" class="img-fluid">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
