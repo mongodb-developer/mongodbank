@@ -12,6 +12,7 @@ from config import Config
 import datetime
 from bson import ObjectId
 import traceback
+from decimal import Decimal, ROUND_HALF_UP
 
 from urllib.parse import urlparse
 from flask import jsonify
@@ -151,6 +152,10 @@ def get_transaction(transaction_id):
     else:
         return jsonify({'error': 'Account not found'}), 404
 
+from bson import ObjectId
+from bson.json_util import dumps
+import json
+
 @app.route('/api/transactions', methods=['GET'])
 def get_transactions():
     try:
@@ -158,51 +163,66 @@ def get_transactions():
             return jsonify({'error': 'Unauthorized'}), 401
 
         account_id = request.args.get('account_id')
-        if not account_id:
-            return jsonify({'error': 'No account ID provided'}), 400
-
-        page = int(request.args.get('page', 1))  # Default to page 1
-        limit = int(request.args.get('limit', 6))  # Default to 10 items per page
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 6))
         skip = (page - 1) * limit
 
-        try:
-            account_object_id = ObjectId(account_id)
-        except Exception as e:
-            logging.error(f"Error converting account_id to ObjectId: {e}")
-            return jsonify({'error': 'Invalid account ID format'}), 400
+        user_id = ObjectId(session['user_id'])
 
-        transactions = list(mongo.db.transactions.find({'account_id': account_object_id})
+        # If no account_id is provided, fetch transactions for all user's accounts
+        if not account_id:
+            user_accounts = list(mongo.db.accounts.find({'customer_id': user_id}))
+            account_ids = [account['_id'] for account in user_accounts]
+            query = {'account_id': {'$in': account_ids}}
+        else:
+            account_object_id = ObjectId(account_id)
+            query = {'account_id': account_object_id}
+
+        app.logger.info(f"Fetching transactions with query: {query}")
+        transactions = list(mongo.db.transactions.find(query)
                             .sort('timestamp', pymongo.DESCENDING)
                             .skip(skip)
                             .limit(limit))
 
+        app.logger.info(f"Found {len(transactions)} transactions")
+
+        serialized_transactions = []
         for transaction in transactions:
-            transaction['_id'] = str(transaction['_id'])  # Convert _id to string
-            transaction['account_id'] = str(transaction['account_id'])  # Convert account_id to string
+            serialized_transaction = {
+                '_id': str(transaction['_id']),
+                'account_id': str(transaction['account_id']),
+                'type': transaction['type'],
+                'amount': transaction['amount'],
+                'timestamp': transaction['timestamp'].isoformat() if isinstance(transaction['timestamp'], datetime) else transaction['timestamp'],
+                'fraud_flags': transaction.get('fraud_flags', [])
+
+            }
             if 'from_account' in transaction:
-                transaction['from_account'] = str(transaction['from_account'])  # Convert from_account to string
+                serialized_transaction['from_account'] = str(transaction['from_account'])
                 from_account = mongo.db.accounts.find_one({"_id": ObjectId(transaction['from_account'])})
                 if from_account:
-                    transaction['from_account_name'] = from_account['account_type']
+                    serialized_transaction['from_account_name'] = from_account['account_type']
             if 'to_account' in transaction:
-                transaction['to_account'] = str(transaction['to_account'])  # Convert to_account to string
+                serialized_transaction['to_account'] = str(transaction['to_account'])
                 to_account = mongo.db.accounts.find_one({"_id": ObjectId(transaction['to_account'])})
                 if to_account:
-                    transaction['to_account_name'] = to_account['account_type']
-            if isinstance(transaction['timestamp'], datetime):
-                transaction['timestamp'] = transaction['timestamp'].isoformat()
+                    serialized_transaction['to_account_name'] = to_account['account_type']
+            serialized_transactions.append(serialized_transaction)
 
-        total_transactions = mongo.db.transactions.count_documents({'account_id': account_object_id})
-        total_pages = (total_transactions + limit - 1) // limit  # Calculate total pages
+        total_transactions = mongo.db.transactions.count_documents(query)
+        total_pages = (total_transactions + limit - 1) // limit
 
-        return jsonify({
-            'transactions': transactions,
+        response_data = {
+            'transactions': serialized_transactions,
             'page': page,
             'total_pages': total_pages
-        })
+        }
+        app.logger.info(f"Returning response: {response_data}")
+        return jsonify(response_data)
 
     except Exception as e:
-        logging.error(f"Error in get_transactions: {e}")
+        app.logger.error(f"Error in get_transactions: {str(e)}")
+        app.logger.error(traceback.format_exc())
         return jsonify({'error': 'An error occurred while retrieving transactions'}), 500
 
 
@@ -761,6 +781,279 @@ def get_dashboard_metrics():
         logging.error(f"Error fetching dashboard metrics: {e}")
         return jsonify({'error': 'An error occurred'}), 500
 
+def create_admin_user(username, password):
+    hashed_password = scrypt.hash(password)
+    admin_user = {
+        "username": username,
+        "password": hashed_password,
+        "is_admin": True
+    }
+    mongo.db.customers.insert_one(admin_user)
+    
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        
+        user = mongo.db.customers.find_one({'username': username, 'is_admin': True})
+        if user and scrypt.verify(password, user['password']):
+            session['admin_id'] = str(user['_id'])
+            return redirect(url_for('admin_dashboard'))
+        
+        return 'Invalid username or password', 401
+    
+    return render_template('admin_login.html')
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_id', None)
+    return redirect(url_for('admin_login'))
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if 'admin_id' not in session:
+        return redirect(url_for('admin_login'))
+    
+    # Add admin dashboard logic here
+    return render_template('admin_dashboard.html')
+
+def serialize_mongo_doc(doc):
+    """Helper function to serialize MongoDB document"""
+    for key, value in doc.items():
+        if isinstance(value, ObjectId):
+            doc[key] = str(value)
+        elif isinstance(value, datetime):
+            doc[key] = value.isoformat()
+    return doc
+
+@app.route('/admin/api/dashboard_metrics')
+def admin_dashboard_metrics():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    total_users = mongo.db.customers.count_documents({})
+    total_transactions = mongo.db.transactions.count_documents({})
+    total_accounts = mongo.db.accounts.count_documents({})
+
+    recent_transactions = list(mongo.db.transactions.find().sort('timestamp', -1).limit(5))
+    recent_transactions = [serialize_mongo_doc(transaction) for transaction in recent_transactions]
+
+    fraud_alerts = list(mongo.db.transactions.find({'fraud_flags': {'$exists': True, '$ne': []}}).sort('timestamp', -1).limit(5))
+    fraud_alerts = [serialize_mongo_doc(alert) for alert in fraud_alerts]
+
+    return jsonify({
+        'total_users': total_users,
+        'total_transactions': total_transactions,
+        'total_accounts': total_accounts,
+        'recent_transactions': recent_transactions,
+        'fraud_alerts': fraud_alerts
+    })
+
+@app.route('/admin/api/transaction_volume')
+def transaction_volume():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    pipeline = [
+        {
+            '$addFields': {
+                'date': {
+                    '$dateFromString': {
+                        'dateString': '$timestamp',
+                        'onError': '$timestamp'  # If parsing fails, use the original value
+                    }
+                }
+            }
+        },
+        {
+            '$group': {
+                '_id': {
+                    '$dateToString': {
+                        'format': '%Y-%m-%d',
+                        'date': '$date'
+                    }
+                },
+                'count': {'$sum': 1},
+                'total_amount': {'$sum': '$amount'}
+            }
+        },
+        {'$sort': {'_id': 1}},
+        {'$limit': 30}
+    ]
+
+    try:
+        result = list(mongo.db.transactions.aggregate(pipeline))
+        return jsonify(result)
+    except Exception as e:
+        app.logger.error(f"Error in transaction_volume: {str(e)}")
+        return jsonify({'error': 'An error occurred while fetching transaction volume data'}), 500
+
+import random
+from datetime import datetime, timedelta
+from bson import ObjectId
+
+import random
+from datetime import datetime, timedelta, timezone
+from bson import ObjectId
+
+@app.route('/admin/reset_data', methods=['POST'])
+def reset_data():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    try:
+        # Clear existing data
+        mongo.db.customers.delete_many({})
+        mongo.db.accounts.delete_many({})
+        mongo.db.transactions.delete_many({})
+        mongo.db.alerts.delete_many({})
+
+        # Create johndoe user
+        johndoe_id = ObjectId()
+        mongo.db.customers.insert_one({
+            '_id': johndoe_id,
+            'username': 'johndoe',
+            'password': scrypt.hash('password123'),
+            'email': 'johndoe@example.com',
+            'created_at': datetime.now(timezone.utc)
+        })
+
+        # Create accounts for johndoe
+        checking_id = ObjectId()
+        savings_id = ObjectId()
+        accounts = [
+            {
+                '_id': checking_id,
+                'customer_id': johndoe_id,
+                'account_type': 'Checking',
+                'balance': float('5000.00'),
+                'created_at': datetime.now(timezone.utc)
+            },
+            {
+                '_id': savings_id,
+                'customer_id': johndoe_id,
+                'account_type': 'Savings',
+                'balance': float('10000.00'),
+                'created_at': datetime.now(timezone.utc)
+            }
+        ]
+        mongo.db.accounts.insert_many(accounts)
+
+        # Generate sample transactions
+        transactions = []
+        alerts = []
+        current_date = datetime.now(timezone.utc) - timedelta(days=30)
+        account_balances = {str(checking_id): Decimal('5000.00'), str(savings_id): Decimal('10000.00')}
+
+        def round_to_penny(amount):
+            return Decimal(amount).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
+
+        for _ in range(100):  # Generate 100 transactions over the last 30 days
+            transaction_type = random.choice(['deposit', 'withdrawal', 'transfer'])
+            amount = round_to_penny(random.uniform(10, 1000))
+            
+            from_account = random.choice([checking_id, savings_id])
+            to_account = checking_id if from_account == savings_id else savings_id
+
+            # Ensure withdrawal and transfers don't result in negative balance
+            if transaction_type in ['withdrawal', 'transfer']:
+                max_amount = account_balances[str(from_account)]
+                amount = min(amount, max_amount)
+
+            transaction = {
+                '_id': ObjectId(),
+                'customer_id': johndoe_id,
+                'account_id': from_account if transaction_type != 'transfer' else None,
+                'type': transaction_type,
+                'amount': float(amount),
+                'timestamp': current_date,
+            }
+
+            if transaction_type == 'transfer':
+                transaction['from_account'] = from_account
+                transaction['to_account'] = to_account
+                account_balances[str(from_account)] -= amount
+                account_balances[str(to_account)] += amount
+            elif transaction_type == 'deposit':
+                account_balances[str(from_account)] += amount
+            else:  # withdrawal
+                account_balances[str(from_account)] -= amount
+
+            # Randomly add fraud flags
+            if random.random() < 0.1:  # 10% chance of fraud flag
+                fraud_type = random.choice(['velocity', 'location'])
+                transaction['fraud_flags'] = [fraud_type]
+                
+                # Create an alert for this transaction
+                alert = {
+                    'customer_id': johndoe_id,
+                    'account_id': transaction['account_id'] or transaction['from_account'],
+                    'transaction_id': transaction['_id'],
+                    'type': 'Potential Fraud',
+                    'message': f"Suspicious activity detected: {fraud_type}",
+                    'timestamp': current_date,
+                    'resolved': False
+                }
+                alerts.append(alert)
+
+            transactions.append(transaction)
+            current_date += timedelta(minutes=random.randint(30, 720))  # 0.5 to 12 hours between transactions
+
+        mongo.db.transactions.insert_many(transactions)
+        if alerts:
+            mongo.db.alerts.insert_many(alerts)
+
+        # Update final account balances
+        mongo.db.accounts.update_one({'_id': checking_id}, {'$set': {'balance': float(account_balances[str(checking_id)])}})
+        mongo.db.accounts.update_one({'_id': savings_id}, {'$set': {'balance': float(account_balances[str(savings_id)])}})
+
+        return jsonify({'message': 'Data reset successful. Sample data generated for johndoe user.'}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error resetting data: {str(e)}")
+        return jsonify({'error': 'An error occurred while resetting data'}), 500
+@app.route('/admin/deploy_data', methods=['POST'])
+def deploy_data():
+    if 'admin_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    target_uri = request.form.get('target_uri')
+    if not target_uri:
+        return jsonify({'error': 'No target URI provided'}), 400
+
+    try:
+        # Connect to the target database
+        target_client = MongoClient(target_uri)
+        target_db = target_client.get_default_database()
+
+        # Connect to the source database
+        source_client = MongoClient(os.getenv('MONGO_URI'))
+        source_db = source_client.get_default_database()
+
+        # Collections to copy
+        collections = ['customers', 'accounts', 'transactions', 'alerts']
+
+        for collection_name in collections:
+            # Clear existing data in target collection
+            target_db[collection_name].delete_many({})
+
+            # Copy data from source to target
+            documents = list(source_db[collection_name].find())
+            if documents:
+                target_db[collection_name].insert_many(documents)
+
+        return jsonify({'message': 'Data successfully deployed to target database'}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error deploying data: {str(e)}")
+        return jsonify({'error': 'An error occurred while deploying data'}), 500
+
+    finally:
+        if 'target_client' in locals():
+            target_client.close()
+        if 'source_client' in locals():
+            source_client.close()
 
 if __name__ == '__main__':
     app.run(debug=True)

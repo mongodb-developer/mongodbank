@@ -398,18 +398,25 @@ function loadTransactions(accountId, page = 1) {
             });
             data.transactions.forEach((transaction, index) => {
                 const fraudFlag = transaction.fraud_flags && transaction.fraud_flags.length > 0;
-
+                const fraudBadge = fraudFlag 
+                    ? '<span class="badge bg-danger ms-2">Potential Fraud</span>' 
+                    : '';
                 const transactionItem = `
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="heading-${index}">
                             <button class="accordion-button ${index > 0 ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${index}" aria-expanded="${index === 0}" aria-controls="collapse-${index}">
-                                ${transaction.type}: $${transaction.amount} <small class="text-muted ms-3">${new Date(transaction.timestamp).toLocaleString()}</small>
-                                ${fraudFlag ? '<span class="badge bg-danger ms-auto">Fraud Detected</span>' : ''}
+                                ${transaction.type}: $${transaction.amount.toFixed(2)} 
+                                <small class="text-muted ms-3">${new Date(transaction.timestamp).toLocaleString()}</small>
+                                ${fraudBadge}
                             </button>
                         </h2>
                         <div id="collapse-${index}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="heading-${index}" data-bs-parent="#transactions-accordion">
                             <div class="accordion-body">
                                 <table class="table table-striped">
+                                    <tr>
+                                        <th>Transaction ID</th>
+                                        <td>${transaction._id}</td>
+                                    </tr>
                                     <tr>
                                         <th>Type</th>
                                         <td>${transaction.type}</td>
