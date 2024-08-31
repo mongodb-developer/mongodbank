@@ -177,9 +177,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (transferForm) {
-        transferForm.addEventListener('submit', function(e) {
+        transferForm.addEventListener('submit', function (e) {
             e.preventDefault();
-            
+
             const sourceAccountId = document.getElementById('source-account').value;
             const destinationAccountId = document.getElementById('destination-account').value;
             const amount = document.getElementById('transfer-amount').value;
@@ -197,20 +197,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     simulate_failure: simulateFailure
                 }),
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    showTransactionFailureModal(data.error, sourceAccountId, destinationAccountId, amount);
-                } else {
-                    alert('Transfer successful!');
-                    loadTransactions(sourceAccountId);
-                    loadTransactions(destinationAccountId);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showTransactionFailureModal('An unexpected error occurred', sourceAccountId, destinationAccountId, amount);
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        showTransactionFailureModal(data.error, sourceAccountId, destinationAccountId, amount);
+                    } else {
+                        alert('Transfer successful!');
+                        loadTransactions(sourceAccountId);
+                        loadTransactions(destinationAccountId);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showTransactionFailureModal('An unexpected error occurred', sourceAccountId, destinationAccountId, amount);
+                });
         });
     }
 
@@ -457,6 +457,22 @@ function loadTransactions(accountId, page = 1) {
         .catch(error => {
             console.error('Error loading transactions:', error);
             showError('Failed to load transactions.');
+        });
+
+        fetch('/api/dashboard_metrics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error fetching dashboard metrics:', data.error);
+            } else {
+                document.getElementById('total-balance').textContent = `$${data.total_balance.toFixed(2)}`;
+                document.getElementById('recent-transaction-count').textContent = data.recent_transaction_count;
+                document.getElementById('pending-review-count').textContent = data.pending_review_count;
+                document.getElementById('alert-count').textContent = data.alert_count;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching dashboard metrics:', error);
         });
 }
 

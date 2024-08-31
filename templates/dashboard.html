@@ -5,6 +5,50 @@
 {% block content %}
 <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
 <div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
+<div class="container-fluid mt-4">
+    <!-- Hero Section -->
+    <div class="hero-section mb-4 p-4 shadow-sm rounded" style="background-color: #f7f7f7;">
+        <div class="row">
+            <div class="col-md-8">
+                <h1 class="display-4" style="color: #00684A;">Welcome, {{ user.username }}</h1>
+                <p class="lead">Your financial overview at a glance.</p>
+            </div>
+        </div>
+        <div class="row mt-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Balance</h5>
+                        <p class="card-text display-6">${{ total_balance }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Recent Transactions</h5>
+                        <p class="card-text display-6">{{ recent_transaction_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending Reviews</h5>
+                        <p class="card-text display-6">{{ pending_review_count }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="card bg-light mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Alerts</h5>
+                        <p class="card-text display-6">{{ alert_count }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 <div class="row mb-4">
     <!-- Your Accounts -->
     <div class="col-lg-6">

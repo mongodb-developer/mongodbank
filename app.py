@@ -79,9 +79,49 @@ def about():
 def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('index'))
-    user = mongo.db.customers.find_one({'_id': ObjectId(session['user_id'])})
-    accounts = list(mongo.db.accounts.find({'customer_id': ObjectId(session['user_id'])}))
-    return render_template('dashboard.html', user=user, accounts=accounts)
+
+    user_id = session['user_id']
+
+    try:
+        # Calculate total balance
+        total_balance_cursor = db.accounts.aggregate([
+            {"$match": {"customer_id": ObjectId(user_id)}},
+            {"$group": {"_id": None, "total_balance": {"$sum": "$balance"}}}
+        ])
+
+        total_balance_result = list(total_balance_cursor)
+        total_balance = total_balance_result[0]["total_balance"] if total_balance_result else 0
+
+        # Calculate recent transactions
+        recent_transaction_count = db.transactions.count_documents({
+            "customer_id": ObjectId(user_id),
+            "timestamp": {"$gte": datetime.now() - timedelta(days=7)}
+        })
+
+        # Calculate pending reviews
+        pending_review_count = db.transactions.count_documents({
+            "customer_id": ObjectId(user_id),
+            "review_status": {"$exists": False},
+            "fraud_flags": {"$exists": True, "$ne": []}
+        })
+
+        # Calculate alerts
+        alert_count = db.alerts.count_documents({"customer_id": ObjectId(user_id)})
+
+        user = db.customers.find_one({"_id": ObjectId(user_id)})
+        accounts = list(db.accounts.find({"customer_id": ObjectId(user_id)}))
+
+        return render_template('dashboard.html', user=user, accounts=accounts,
+                               total_balance=total_balance,
+                               recent_transaction_count=recent_transaction_count,
+                               pending_review_count=pending_review_count,
+                               alert_count=alert_count)
+
+    except Exception as e:
+        logging.error(f"Error fetching dashboard metrics: {e}")
+        return jsonify({'error': 'An error occurred while fetching dashboard metrics.'}), 500
+
+
 
 @app.route('/api/accounts/<account_id>', methods=['GET'])
 def get_account(account_id):
@@ -196,10 +236,20 @@ def create_transaction():
     if fraud_check == 'velocity':
         velocity_count = db.transactions.count_documents({
             'account_id': ObjectId(account_id),
-            'timestamp': {'$gte': timestamp - datetime.timedelta(hours=1)}
+            'timestamp': {'$gte': timestamp - timedelta(hours=1)}
         })
         if velocity_count > 10:  # Example threshold
             fraud_flags.append('velocity')
+            # Insert an alert for velocity check
+            alert = {
+                "customer_id": ObjectId(session['user_id']),
+                "account_id": ObjectId(account_id),
+                "alert_type": "velocity_check",
+                "message": f"Velocity check triggered: {velocity_count} transactions in the last hour.",
+                "timestamp": datetime.now(timezone.utc),
+                "resolved": False
+            }
+            db.alerts.insert_one(alert)
 
     # Location Check
     if fraud_check == 'location' and location:
@@ -211,6 +261,16 @@ def create_transaction():
             prev_location = previous_transaction['location']
             if calculate_distance(location, prev_location) > 1000:  # Example threshold in km
                 fraud_flags.append('location')
+                # Insert an alert for location check
+                alert = {
+                    "customer_id": ObjectId(session['user_id']),
+                    "account_id": ObjectId(account_id),
+                    "alert_type": "location_check",
+                    "message": f"Location check triggered: Distance from last transaction is over 1000 km.",
+                    "timestamp": datetime.now(timezone.utc),
+                    "resolved": False
+                }
+                db.alerts.insert_one(alert)
 
     # Create the transaction document
     transaction = {
@@ -656,6 +716,51 @@ def review_transaction():
     
     return jsonify({'success': True}), 200
 
-    
+@app.route('/api/dashboard_metrics', methods=['GET'])
+def get_dashboard_metrics():
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        # Fetch total balance
+        total_balance_cursor = db.accounts.aggregate([
+            {'$match': {'customer_id': ObjectId(user_id)}},
+            {'$group': {'_id': None, 'total_balance': {'$sum': '$balance'}}}
+        ])
+
+        total_balance_result = list(total_balance_cursor)
+        total_balance = total_balance_result[0]["total_balance"] if total_balance_result else 0
+
+        # Calculate recent transactions
+        recent_transaction_count = db.transactions.count_documents({
+            "account_id": {'$in': [account['_id'] for account in db.accounts.find({'customer_id': ObjectId(user_id)})]},
+            "timestamp": {"$gte": datetime.now() - timedelta(days=7)}
+        })
+
+        # Calculate pending reviews
+        pending_review_count = db.transactions.count_documents({
+            "account_id": {'$in': [account['_id'] for account in db.accounts.find({'customer_id': ObjectId(user_id)})]},
+            "review_status": {"$exists": False},
+            "fraud_flags": {"$exists": True, "$ne": []}
+        })
+
+        # Calculate alerts
+        alert_count = db.alerts.count_documents({
+            "account_id": {'$in': [account['_id'] for account in db.accounts.find({'customer_id': ObjectId(user_id)})]}
+        })
+
+        return jsonify({
+            'total_balance': total_balance,
+            'recent_transaction_count': recent_transaction_count,
+            'pending_review_count': pending_review_count,
+            'alert_count': alert_count
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching dashboard metrics: {e}")
+        return jsonify({'error': 'An error occurred'}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True)
