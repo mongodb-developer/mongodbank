@@ -74,20 +74,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Update the statement generation code in main.js
 
-statementForm.addEventListener('submit', function (e) {
-    e.preventDefault();
+    statementForm.addEventListener('submit', function (e) {
+        e.preventDefault();
 
-    const accountId = document.getElementById('statement-account-select').value;
-    const startDate = document.getElementById('start-date').value;
-    const endDate = document.getElementById('end-date').value;
+        const accountId = document.getElementById('statement-account-select').value;
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
 
-    fetch(`/api/statement?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`)
-        .then(response => response.json())
-        .then(statement => {
-            if (statement.transactions && statement.transactions.length > 0) {
-                // Display the statement data
-                const statementResult = document.getElementById('statement-result');
-                statementResult.innerHTML = `
+        fetch(`/api/statement?account_id=${accountId}&start_date=${startDate}&end_date=${endDate}`)
+            .then(response => response.json())
+            .then(statement => {
+                if (statement.transactions && statement.transactions.length > 0) {
+                    // Display the statement data
+                    const statementResult = document.getElementById('statement-result');
+                    statementResult.innerHTML = `
                     <h3>Statement Summary</h3>
                     <p>Account Type: ${statement.account_type || 'N/A'}</p>
                     <p>Balance: $${statement.balance !== undefined ? statement.balance.toFixed(2) : 'N/A'}</p>
@@ -114,19 +114,19 @@ statementForm.addEventListener('submit', function (e) {
                         </tbody>
                     </table>
                 `;
-                
-                // Show the download button
-                downloadPdfButton.style.display = 'block';
-            } else {
-                alert('No transactions found for the specified period.');
-                downloadPdfButton.style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error generating statement:', error);
-            alert('Failed to generate statement. Please check the console for more details.');
-        });
-});
+
+                    // Show the download button
+                    downloadPdfButton.style.display = 'block';
+                } else {
+                    alert('No transactions found for the specified period.');
+                    downloadPdfButton.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error generating statement:', error);
+                alert('Failed to generate statement. Please check the console for more details.');
+            });
+    });
 
     if (accountSelect) {
         accountSelect.addEventListener('change', function () {
@@ -177,16 +177,13 @@ statementForm.addEventListener('submit', function (e) {
     }
 
     if (transferForm) {
-        transferForm.addEventListener('submit', function (e) {
+        transferForm.addEventListener('submit', function(e) {
             e.preventDefault();
-
+            
             const sourceAccountId = document.getElementById('source-account').value;
             const destinationAccountId = document.getElementById('destination-account').value;
-            const amount = parseFloat(document.getElementById('transfer-amount').value);
-
-            console.log("Source Account ID:", sourceAccountId);
-            console.log("Destination Account ID:", destinationAccountId);
-            console.log("Amount:", amount);
+            const amount = document.getElementById('transfer-amount').value;
+            const simulateFailure = document.getElementById('simulate-failure').checked;
 
             fetch('/transfer', {
                 method: 'POST',
@@ -196,26 +193,71 @@ statementForm.addEventListener('submit', function (e) {
                 body: JSON.stringify({
                     source_account_id: sourceAccountId,
                     destination_account_id: destinationAccountId,
-                    amount: amount
+                    amount: amount,
+                    simulate_failure: simulateFailure
                 }),
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert('Error: ' + data.error);
-                    } else {
-                        alert('Transfer successful!');
-                        // Refresh the UI to show the updated balances
-                        updateAccountBalances(sourceAccountId, destinationAccountId);
-                        loadTransactions(sourceAccountId);
-                        loadTransactions(destinationAccountId);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Transfer failed');
-                });
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showTransactionFailureModal(data.error, sourceAccountId, destinationAccountId, amount);
+                } else {
+                    alert('Transfer successful!');
+                    loadTransactions(sourceAccountId);
+                    loadTransactions(destinationAccountId);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showTransactionFailureModal('An unexpected error occurred', sourceAccountId, destinationAccountId, amount);
+            });
         });
+    }
+
+    function showTransactionFailureModal(reason, sourceAccountId, destinationAccountId, amount) {
+        document.getElementById('failure-reason').textContent = reason;
+        document.getElementById('failure-source-account-id').textContent = sourceAccountId;
+        document.getElementById('failure-destination-account-id').textContent = destinationAccountId;
+        document.getElementById('failure-amount').textContent = `$${amount}`;
+
+        const codeExample = `
+# Example Code:
+source_account_id = "${sourceAccountId}"
+destination_account_id = "${destinationAccountId}"
+amount = ${amount}
+
+try:
+    with client.start_session() as session:
+        with session.start_transaction():
+            # Debit from source account
+            source_account = db.accounts.find_one_and_update(
+                {"_id": ObjectId(source_account_id), "balance": {"$gte": amount}},
+                {"$inc": {"balance": -amount}},
+                session=session
+            )
+            if not source_account:
+                raise errors.OperationFailure("Insufficient funds in source account")
+
+            # Credit to destination account
+            destination_account = db.accounts.find_one_and_update(
+                {"_id": ObjectId(destination_account_id)},
+                {"$inc": {"balance": amount}},
+                session=session
+            )
+            if not destination_account:
+                raise errors.OperationFailure("Destination account not found")
+            
+            session.commit_transaction()
+
+except Exception as e:
+    session.abort_transaction()
+    print(f"Error: {e}")
+`;
+
+        document.getElementById('failure-code-example').textContent = codeExample;
+
+        const transactionFailureModal = new bootstrap.Modal(document.getElementById('transactionFailureModal'));
+        transactionFailureModal.show();
     }
 
     function updateAccountBalances(sourceAccountId, destinationAccountId) {

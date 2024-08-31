@@ -338,18 +338,24 @@ if previous_transaction and location:
     else:
         return jsonify({'title': 'Not Found', 'code': 'Code not available'}), 404
 
-
-
 @app.route('/transfer', methods=['POST'])
 def transfer():
     source_account_id = request.json['source_account_id']
     destination_account_id = request.json['destination_account_id']
     amount = float(request.json['amount'])
+    simulate_failure = request.json.get('simulate_failure', False)  # Get the simulate failure flag
+
+    logging.info(f"Starting transfer from {source_account_id} to {destination_account_id} amount: {amount}")
 
     try:
         with client.start_session() as session:
             with session.start_transaction():
+                # Simulate a failure if the checkbox was checked
+                if simulate_failure:
+                    raise Exception("Simulated failure for demonstration purposes")
+
                 # Step 1: Debit from source account
+                logging.info("Attempting to debit source account")
                 source_account = db.accounts.find_one_and_update(
                     {"_id": ObjectId(source_account_id), "balance": {"$gte": amount}},
                     {"$inc": {"balance": -amount}},
@@ -357,9 +363,11 @@ def transfer():
                     return_document=True
                 )
                 if not source_account:
+                    logging.error("Insufficient funds in source account")
                     raise errors.OperationFailure("Insufficient funds in source account")
 
                 # Step 2: Credit to destination account
+                logging.info("Attempting to credit destination account")
                 destination_account = db.accounts.find_one_and_update(
                     {"_id": ObjectId(destination_account_id)},
                     {"$inc": {"balance": amount}},
@@ -368,34 +376,40 @@ def transfer():
                 )
 
                 if not destination_account:
+                    logging.error("Destination account not found")
                     raise errors.OperationFailure("Destination account not found")
 
                 # Step 3: Record transaction in the source account
+                logging.info("Recording transaction in the source account")
                 source_transaction = {
                     "account_id": ObjectId(source_account_id),
                     "amount": -amount,
                     "type": "transfer_out",
-                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "from_account": ObjectId(source_account_id),
                     "to_account": ObjectId(destination_account_id)
                 }
                 db.transactions.insert_one(source_transaction, session=session)
 
                 # Step 4: Record transaction in the destination account
+                logging.info("Recording transaction in the destination account")
                 destination_transaction = {
                     "account_id": ObjectId(destination_account_id),
                     "amount": amount,
                     "type": "transfer_in",
-                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "from_account": ObjectId(source_account_id),
                     "to_account": ObjectId(destination_account_id)
                 }
                 db.transactions.insert_one(destination_transaction, session=session)
 
+        logging.info("Transfer successful")
         return jsonify({"status": "Transfer successful"}), 200
     except errors.OperationFailure as e:
+        logging.error(f"OperationFailure: {e}")
         return jsonify({"error": str(e)}), 400
     except Exception as e:
+        logging.error(f"General Exception: {e}")
         return jsonify({"error": "An error occurred during the transaction"}), 500
 
 def calculate_distance(location1, location2):

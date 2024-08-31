@@ -108,11 +108,10 @@
         </div>
     </div>
 
-    <!-- Transfer Funds -->
-    <div class="col-lg-6">
-        <div class="card shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0">
             <div class="card-body">
-                <h2 class="card-title" style="color: #00684A;">Transfer Funds</h2> <!-- Forest Green -->
+                <h2 class="card-title" style="color: #00684A;">Transfer Funds</h2>
                 <form id="transfer-form">
                     <div class="mb-3">
                         <label for="source-account" class="form-label">Source Account</label>
@@ -134,18 +133,45 @@
                         <label for="transfer-amount" class="form-label">Amount</label>
                         <input type="number" class="form-control rounded" id="transfer-amount" required min="0" step="0.01">
                     </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="simulate-failure">
+                        <label class="form-check-label" for="simulate-failure">Simulate Transaction Failure</label>
+                        <i class="fas fa-question-circle text-info ms-2" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#failureInfoModal"></i>
+
+                    </div>
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn" style="background-color: #13AA52; color: white;">Transfer</button> <!-- Evergreen -->
-                        <button type="button" class="btn btn-info" onclick="showCode('transfer')">
-                            <i class="fas fa-exchange-alt"></i> Show Transfer Logic
-                        </button>
+                        <button type="submit" class="btn" style="background-color: #13AA52; color: white;">Transfer</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+    
 </div>
-
+<!-- Failure Info Modal -->
+<div class="modal fade" id="failureInfoModal" tabindex="-1" aria-labelledby="failureInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="failureInfoModalLabel">What is Simulating a Transaction Failure?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Simulating a transaction failure allows you to test how the system behaves when something goes wrong during a transaction.
+                    This could include issues like insufficient funds, a network error, or other unexpected conditions. When this option is enabled,
+                    the system will intentionally introduce an error during the transaction process to trigger the rollback mechanism, demonstrating
+                    how MongoDB handles ACID transactions and ensures data consistency.
+                </p>
+                <p><strong>Use Case:</strong> Checking this option is useful for educational purposes, to show developers how MongoDB transactions work,
+                and how errors are managed in a production environment.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="row mb-4">
     <!-- Generate Statement -->
     <div class="col-lg-12">
@@ -236,6 +262,31 @@
         </div>
     </div>
 </div>
+
+<!-- Transaction Failure Modal -->
+<div class="modal fade" id="transactionFailureModal" tabindex="-1" aria-labelledby="transactionFailureModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger" id="transactionFailureModalLabel">Transaction Failed</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="failure-reason"></p>
+                <h5>Details:</h5>
+                <p><strong>Source Account ID:</strong> <span id="failure-source-account-id"></span></p>
+                <p><strong>Destination Account ID:</strong> <span id="failure-destination-account-id"></span></p>
+                <p><strong>Amount:</strong> <span id="failure-amount"></span></p>
+                <h5>Code Example:</h5>
+                <pre id="failure-code-example"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
