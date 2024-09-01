@@ -6,6 +6,47 @@
 <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
 <div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
 <div class="container-fluid mt-4">
+    <div class="accordion mb-4" id="learningToolsAccordion">
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="learningToolsHeader">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#learningToolsContent" aria-expanded="true" aria-controls="learningToolsContent">
+                    Learning Tools
+                </button>
+            </h2>
+            <div id="learningToolsContent" class="accordion-collapse collapse show" aria-labelledby="learningToolsHeader">
+                <div class="accordion-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <button type="button" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#postgresERDModal">
+                                View PostgreSQL ERD
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <button type="button" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#mongoDBERDModal">
+                                View MongoDB ERD
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <button type="button" class="btn btn-info w-100" onclick="showCode('data_model')">
+                                Show Data Model
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <button type="button" class="btn btn-info w-100" onclick="showCode('get_transactions')">
+                                Show Get Transactions Logic
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <button type="button" class="btn btn-info w-100" onclick="showCode('create_transaction')">
+                                Show Create Transaction Logic
+                            </button>
+                        </div>
+                        <!-- Add more buttons here as needed -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Hero Section -->
     <div class="hero-section mb-4 p-4 shadow-sm rounded" style="background-color: #f7f7f7;">
         <div class="row">
@@ -19,7 +60,7 @@
                 <div class="card bg-light mb-3">
                     <div class="card-body">
                         <h5 class="card-title">Total Balance</h5>
-                        <p class="card-text display-6">${{ total_balance }}</p>
+                        <p class="card-text display-6" id="total-balance">$0.00</p>
                     </div>
                 </div>
             </div>
@@ -27,7 +68,7 @@
                 <div class="card bg-light mb-3">
                     <div class="card-body">
                         <h5 class="card-title">Recent Transactions</h5>
-                        <p class="card-text display-6">{{ recent_transaction_count }}</p>
+                        <p class="card-text display-6" id="recent-transaction-count">0</p>
                     </div>
                 </div>
             </div>
@@ -35,7 +76,7 @@
                 <div class="card bg-light mb-3">
                     <div class="card-body">
                         <h5 class="card-title">Pending Reviews</h5>
-                        <p class="card-text display-6">{{ pending_review_count }}</p>
+                        <p class="card-text display-6" id="pending-review-count">0</p>
                     </div>
                 </div>
             </div>
@@ -43,7 +84,7 @@
                 <div class="card bg-light mb-3">
                     <div class="card-body">
                         <h5 class="card-title">Alerts</h5>
-                        <p class="card-text display-6">{{ alert_count }}</p>
+                        <p class="card-text display-6" id="alert-count">0</p>
                     </div>
                 </div>
             </div>
@@ -67,14 +108,23 @@
                     <button type="button" class="btn btn-info" onclick="showCode('data_model')">
                         <i class="fas fa-database"></i> Show Data Model
                     </button>
-                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#erdModal">
-                        <i class="fas fa-project-diagram"></i> View ERD
-                    </button>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#postgresERDModal">
+                                View PostgreSQL ERD
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#mongoDBERDModal">
+                                View MongoDB ERD
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
+    
     <!-- Transactions -->
     <div class="col-lg-6">
         <div class="card mb-4 shadow-sm border-0" style="border-left: 5px solid #00684A;"> <!-- Forest Green -->
@@ -270,23 +320,6 @@
     </div>
 </div>
 
-<!-- ERD Modal -->
-<div class="modal fade" id="erdModal" tabindex="-1" aria-labelledby="erdModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="erdModalLabel">Entity-Relationship Diagram (ERD)</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img src="{{ url_for('static', filename='img/erd.svg') }}" alt="ERD of the Data Model" class="img-fluid">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- Review Fraud Transaction Modal -->
 <div class="modal fade" id="reviewFraudModal" tabindex="-1" aria-labelledby="reviewFraudModalLabel" aria-hidden="true">
@@ -326,6 +359,35 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="postgresERDModal" tabindex="-1" aria-labelledby="postgresERDModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="postgresERDModalLabel">PostgreSQL ERD</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <img src="{{ url_for('static', filename='img/erd-pg.svg') }}" alt="PostgreSQL ERD" class="img-fluid">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MongoDB ERD Modal -->
+<div class="modal fade" id="mongoDBERDModal" tabindex="-1" aria-labelledby="mongoDBERDModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mongoDBERDModalLabel">MongoDB ERD</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <img src="{{ url_for('static', filename='img/erd-mdb.svg') }}" alt="MongoDB ERD" class="img-fluid">
             </div>
         </div>
     </div>

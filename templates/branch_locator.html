@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Branch & ATM Locator{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .custom-marker {
+        font-size: 24px;
+        color: white;
+        background-color: #007bff;
+        border-radius: 50%;
+        padding: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1>Branch and ATM Locator</h1>
+    <div id="map" style="height: 400px; width: 100%;"></div>
+    <div class="mt-3">
+        <button id="findBranches" class="btn btn-primary">Find Nearby Branches</button>
+        <button id="findATMs" class="btn btn-secondary">Find Nearby ATMs</button>
+    </div>
+    <div id="results" class="mt-3"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&callback=initMap" async defer></script>
+<script>
+let map;
+let userMarker;
+let locationMarkers = [];
+
+function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 40.7128, lng: -74.0060 },
+        zoom: 10
+    });
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const pos = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                };
+                map.setCenter(pos);
+                userMarker = new google.maps.Marker({
+                    position: pos,
+                    map: map,
+                    title: "Your Location",
+                    icon: {
+                        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M12 0c-4.198 0-8 3.403-8 7.602 0 4.198 3.469 9.21 8 16.398 4.531-7.188 8-12.2 8-16.398 0-4.199-3.801-7.602-8-7.602zm0 11c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z" fill="#4285F4"/></svg>'),
+                        scaledSize: new google.maps.Size(32, 32),
+                        origin: new google.maps.Point(0, 0),
+                        anchor: new google.maps.Point(16, 32)
+                    }
+                });
+            },
+            () => {
+                console.log("Error: The Geolocation service failed.");
+            }
+        );
+    }
+
+    document.getElementById("findBranches").addEventListener("click", () => findLocations('branches'));
+    document.getElementById("findATMs").addEventListener("click", () => findLocations('atms'));
+}
+
+function createCustomMarker(latlng, iconClass, color) {
+    const marker = new google.maps.Marker({
+        position: latlng,
+        map: map,
+        icon: {
+            url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+                    <circle cx="20" cy="20" r="18" fill="${color}"/>
+                    <text x="50%" y="50%" font-size="20" fill="white" text-anchor="middle" dy=".3em" font-family="FontAwesome">${iconClass}</text>
+                </svg>`
+            )}`,
+            scaledSize: new google.maps.Size(40, 40),
+            origin: new google.maps.Point(0, 0),
+            anchor: new google.maps.Point(20, 40)
+        }
+    });
+    return marker;
+}
+
+function findLocations(type) {
+    if (!userMarker) {
+        alert("Please allow location access to find nearby locations.");
+        return;
+    }
+
+    const userPosition = userMarker.getPosition();
+    fetch(`/api/${type}?lat=${userPosition.lat()}&lon=${userPosition.lng()}&radius=10`)
+        .then(response => response.json())
+        .then(locations => {
+            clearLocationMarkers();
+            locations.forEach(location => {
+                const iconClass = type === 'branches' ? '\uf19c' : '\uf53d'; // FontAwesome Unicode for building-columns and money-check-dollar
+                const color = type === 'branches' ? '#FF0000' : '#00FF00';
+                const marker = createCustomMarker(
+                    { lat: location.location.coordinates[1], lng: location.location.coordinates[0] },
+                    iconClass,
+                    color
+                );
+                marker.addListener('click', () => {
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `<strong>${location.name || "Location"}</strong><br>
+                                  ${location.address.street}, ${location.address.city}, ${location.address.state} ${location.address.zipCode}`
+                    });
+                    infoWindow.open(map, marker);
+                });
+                locationMarkers.push(marker);
+            });
+            displayResults(locations, type);
+        })
+        .catch(error => console.error('Error:', error));
+}
+
+function clearLocationMarkers() {
+    locationMarkers.forEach(marker => marker.setMap(null));
+    locationMarkers = [];
+}
+
+function displayResults(locations, type) {
+    const resultsDiv = document.getElementById("results");
+    resultsDiv.innerHTML = `<h3>Nearby ${type.charAt(0).toUpperCase() + type.slice(1)}</h3>`;
+    locations.forEach(location => {
+        resultsDiv.innerHTML += `
+            <div>
+                <strong>${location.name || "Location"}</strong><br>
+                Address: ${location.address.street}, ${location.address.city}, ${location.address.state} ${location.address.zipCode}
+            </div><br>
+        `;
+    });
+}
+</script>
+{% endblock %}

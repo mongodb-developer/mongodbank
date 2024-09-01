@@ -1,12 +1,49 @@
 {% extends "base.html" %}
 
 {% block title %}{% endblock %}
+{% block head %}
+    {{ super() }}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <style>
+        #fraud-map {
+            height: 400px;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .transaction-marker {
+            background-color: #3388ff;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            width: 12px;
+            height: 12px;
+        }
+        .fraud-alert {
+            background-color: red;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
 <div id="error-message" class="alert alert-danger d-none" role="alert"></div>
 <div id="fraud-warning" class="alert alert-warning d-none" role="alert"></div>
 
 <div class="row mb-4">
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2>Location Fraud Detection Simulation</h2>
+        </div>
+        <div class="card-body">
+            <div id="fraud-map"></div>
+            <button id="start-animation" class="btn btn-primary">Start Animation</button>
+        </div>
+    </div>
     <!-- Velocity Check Simulation -->
     <div class="col-md-6 mb-4">
         <div class="card shadow-sm border-0" style="border-left: 5px solid #d9534f;"> <!-- Red -->
@@ -124,30 +161,7 @@
 <script src="{{ url_for('static', filename='js/fraud_simulation.js') }}"></script>
 <script>
  
-    function loadTransactions(accountId) {
-        fetch(`/api/transactions?account_id=${accountId}`)
-            .then(response => response.json())
-            .then(transactions => {
-                const transactionsList = document.getElementById('transactions-list');
-                if (transactionsList) {
-                    transactionsList.innerHTML = transactions.map(transaction => {
-                        let fraudFlag = transaction.fraud_flags && transaction.fraud_flags.length > 0;
-                        return `
-                            <li class="list-group-item d-flex justify-content-between align-items-center rounded ${fraudFlag ? 'bg-warning' : ''}">
-                                ${transaction.type}: $${transaction.amount}
-                                ${fraudFlag ? '<span class="badge bg-danger">Fraud Detected</span>' : ''}
-                                <small class="text-muted">${new Date(transaction.timestamp).toLocaleString()}</small>
-                            </li>
-                        `;
-                    }).join('');
-                } else {
-                    console.error('Transactions list not found in the DOM.');
-                }
-            })
-            .catch(error => {
-                console.error('Error loading transactions:', error);
-            });
-    }
+    
     
     document.addEventListener('DOMContentLoaded', function () {
         const velocityForm = document.getElementById('velocity-simulation-form');
@@ -170,5 +184,6 @@
     });
     
 </script
+<script src="{{ url_for('static', filename='js/fraud-detection-animation.js') }}"></script>
 
 {% endblock %}

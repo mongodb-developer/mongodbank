@@ -1,16 +1,17 @@
 const balanceChartCtx = document.getElementById('balanceChart').getContext('2d');
-let balanceChart;
-const accountSelect = document.getElementById('account-select');
-let currentPage = 1;
-const limit = 10;
-const transactionsList = document.getElementById('transactions-list');
-const transactionForm = document.getElementById('transaction-form');
-const transferForm = document.getElementById('transfer-form');
-const pageInfo = document.getElementById('page-info');
-const prevPageButton = document.getElementById('prev-page');
-const nextPageButton = document.getElementById('next-page');
+    let balanceChart;
+    const accountSelect = document.getElementById('account-select');
+    let currentPage = 1;
+    const limit = 10;
+    const transactionsList = document.getElementById('transactions-list');
+    const transactionForm = document.getElementById('transaction-form');
+    const transferForm = document.getElementById('transfer-form');
+    const pageInfo = document.getElementById('page-info');
+    const prevPageButton = document.getElementById('prev-page');
+    const nextPageButton = document.getElementById('next-page');
 document.addEventListener('DOMContentLoaded', function () {
 
+    fetchDashboardMetrics;
 
     const watermarkPlugin = {
         id: 'watermark',
@@ -43,6 +44,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 ctx.restore();
             };
         }
+
+        
     };
 
     Chart.register(watermarkPlugin); // Register the plugin with Chart.js
@@ -293,6 +296,18 @@ except Exception as e:
                 alert('Failed to update destination account balance.');
             });
     }
+    const postgresERDButton = document.getElementById('postgresERDButton');
+    const mongoDBERDButton = document.getElementById('mongoDBERDButton');
+    const postgresERDModal = new bootstrap.Modal(document.getElementById('postgresERDModal'));
+    const mongoDBERDModal = new bootstrap.Modal(document.getElementById('mongoDBERDModal'));
+
+    postgresERDButton.addEventListener('click', function() {
+        postgresERDModal.show();
+    });
+
+    mongoDBERDButton.addEventListener('click', function() {
+        mongoDBERDModal.show();
+    });
 });
 
 let currentTransactionId = null;
@@ -398,8 +413,8 @@ function loadTransactions(accountId, page = 1) {
             });
             data.transactions.forEach((transaction, index) => {
                 const fraudFlag = transaction.fraud_flags && transaction.fraud_flags.length > 0;
-                const fraudBadge = fraudFlag 
-                    ? '<span class="badge bg-danger ms-2">Potential Fraud</span>' 
+                const fraudBadge = fraudFlag
+                    ? '<span class="badge bg-danger ms-2">Potential Fraud</span>'
                     : '';
                 const transactionItem = `
                     <div class="accordion-item">
@@ -465,22 +480,37 @@ function loadTransactions(accountId, page = 1) {
             console.error('Error loading transactions:', error);
             showError('Failed to load transactions.');
         });
+}
 
-        fetch('/api/dashboard_metrics')
+function fetchDashboardMetrics() {
+    fetch('/api/dashboard_metrics')
         .then(response => response.json())
         .then(data => {
-            if (data.error) {
-                console.error('Error fetching dashboard metrics:', data.error);
-            } else {
-                document.getElementById('total-balance').textContent = `$${data.total_balance.toFixed(2)}`;
-                document.getElementById('recent-transaction-count').textContent = data.recent_transaction_count;
-                document.getElementById('pending-review-count').textContent = data.pending_review_count;
-                document.getElementById('alert-count').textContent = data.alert_count;
-            }
+            updateDashboardMetrics(data);
         })
         .catch(error => {
             console.error('Error fetching dashboard metrics:', error);
         });
+}
+
+function updateDashboardMetrics(data) {
+    const updateElement = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        } else {
+            console.warn(`Element with id '${id}' not found in the DOM`);
+        }
+    };
+
+    if (data.error) {
+        console.error('Error in dashboard metrics:', data.error);
+    } else {
+        updateElement('total-balance', `$${data.total_balance.toFixed(2)}`);
+        updateElement('recent-transaction-count', data.recent_transaction_count);
+        updateElement('pending-review-count', data.pending_review_count);
+        updateElement('alert-count', data.alert_count);
+    }
 }
 
 // Function to show an error message

@@ -13,6 +13,12 @@ import datetime
 from bson import ObjectId
 import traceback
 from decimal import Decimal, ROUND_HALF_UP
+import random
+import json
+from bson import json_util
+
+
+
 
 from urllib.parse import urlparse
 from flask import jsonify
@@ -343,6 +349,12 @@ def get_code(endpoint):
             'description': 'This route creates a new transaction and updates the account balance. It performs a deposit or withdrawal based on the request type and ensures atomicity using MongoDB’s ACID transaction capabilities.',
             'docs_link': 'https://docs.mongodb.com/manual/core/transactions/'  # Example link
         },
+        'branch_locator': {
+            'title': 'Branch & ATM Locator Logic',
+            'code': inspect.getsource(get_branches),  # assuming branch_locator is a defined function
+            'description': 'This code powers the branch and ATM locator functionality, retrieving nearby branches and ATMs based on user location.',
+            'docs_link': 'https://docs.mongodb.com/'  # Replace with relevant documentation
+        },
         'transfer': {
             'title': 'Transfer Route',
             'code': inspect.getsource(transfer),
@@ -356,7 +368,9 @@ def get_code(endpoint):
 {
     "_id": ObjectId("..."),
     "username": "johndoe",
-    "password": "hashed_password"
+    "password": "hashed_password",
+    "email": "johndoe@example.com",
+    "created_at": ISODate("2023-08-28T12:00:00Z")
 }
 
 # Account Document
@@ -364,19 +378,83 @@ def get_code(endpoint):
     "_id": ObjectId("..."),
     "customer_id": ObjectId("..."),
     "account_type": "Checking",
-    "balance": 1000.00
+    "balance": 1000.00,
+    "created_at": ISODate("2023-08-28T12:00:00Z"),
+    "branch_id": ObjectId("...")
 }
 
 # Transaction Document
 {
     "_id": ObjectId("..."),
     "account_id": ObjectId("..."),
-    "amount": 500.00,
     "type": "deposit",
-    "timestamp": ISODate("2023-08-28T12:00:00Z")
+    "amount": 500.00,
+    "timestamp": ISODate("2023-08-28T12:00:00Z"),
+    "from_account": ObjectId("..."),  # Optional, for transfers
+    "to_account": ObjectId("..."),    # Optional, for transfers
+    "fraud_flags": ["velocity", "location"]  # Optional
+}
+
+# Branch Document
+{
+    "_id": ObjectId("..."),
+    "name": "Downtown Branch",
+    "address": {
+        "street": "123 Main St",
+        "city": "Anytown",
+        "state": "ST",
+        "zip_code": "12345",
+        "country": "USA"
+    },
+    "phone_number": "555-1234",
+    "email": "downtown@bank.com",
+    "manager": "Jane Doe",
+    "services": ["Loans", "Deposits", "Wealth Management"],
+    "hours": {
+        "monday": {"open": "09:00", "close": "17:00"},
+        "tuesday": {"open": "09:00", "close": "17:00"},
+        # ... other days ...
+    },
+    "location": {
+        "type": "Point",
+        "coordinates": [-73.98, 40.73]  # [longitude, latitude]
+    }
+}
+
+# ATM Document
+{
+    "_id": ObjectId("..."),
+    "branch_id": ObjectId("..."),
+    "location": {
+        "type": "Point",
+        "coordinates": [-73.98, 40.73]  # [longitude, latitude]
+    },
+    "address": {
+        "street": "456 Side St",
+        "city": "Anytown",
+        "state": "ST",
+        "zip_code": "12345",
+        "country": "USA"
+    },
+    "type": "Walk-up",
+    "features": ["Cash Withdrawal", "Deposit", "Check Cashing"],
+    "accessibility": true,
+    "status": "Operational"
+}
+
+# Alert Document
+{
+    "_id": ObjectId("..."),
+    "customer_id": ObjectId("..."),
+    "account_id": ObjectId("..."),
+    "transaction_id": ObjectId("..."),
+    "type": "Potential Fraud",
+    "message": "Suspicious activity detected: velocity check triggered",
+    "timestamp": ISODate("2023-08-28T12:00:00Z"),
+    "resolved": false
 }
 ''',
-            'description': 'This represents the data model for the application, defining the structure of customer, account, and transaction documents.',
+            'description': 'This represents the comprehensive data model for the application, defining the structure of customer, account, transaction, branch, ATM, and alert documents.',
             'docs_link': 'https://www.mongodb.com/docs/manual/data-modeling/'
         },
         'velocity_check': {
@@ -908,6 +986,17 @@ def reset_data():
         mongo.db.accounts.delete_many({})
         mongo.db.transactions.delete_many({})
         mongo.db.alerts.delete_many({})
+        mongo.db.branches.delete_many({})
+        mongo.db.atms.delete_many({})
+
+        # Create branches
+        branches = create_branches()
+        branch_ids = [branch['_id'] for branch in branches]
+        mongo.db.branches.insert_many(branches)
+
+        # Create ATMs
+        atms = create_atms(branch_ids)
+        mongo.db.atms.insert_many(atms)
 
         # Create johndoe user
         johndoe_id = ObjectId()
@@ -928,19 +1017,21 @@ def reset_data():
                 'customer_id': johndoe_id,
                 'account_type': 'Checking',
                 'balance': float('5000.00'),
-                'created_at': datetime.now(timezone.utc)
+                'created_at': datetime.now(timezone.utc),
+                'branch_id': random.choice(branch_ids)  # Link account to a random branch
             },
             {
                 '_id': savings_id,
                 'customer_id': johndoe_id,
                 'account_type': 'Savings',
                 'balance': float('10000.00'),
-                'created_at': datetime.now(timezone.utc)
+                'created_at': datetime.now(timezone.utc),
+                'branch_id': random.choice(branch_ids)  # Link account to a random branch
             }
         ]
         mongo.db.accounts.insert_many(accounts)
 
-        # Generate sample transactions
+        # Generate sample transactions (unchanged)
         transactions = []
         alerts = []
         current_date = datetime.now(timezone.utc) - timedelta(days=30)
@@ -1008,52 +1099,129 @@ def reset_data():
         mongo.db.accounts.update_one({'_id': checking_id}, {'$set': {'balance': float(account_balances[str(checking_id)])}})
         mongo.db.accounts.update_one({'_id': savings_id}, {'$set': {'balance': float(account_balances[str(savings_id)])}})
 
-        return jsonify({'message': 'Data reset successful. Sample data generated for johndoe user.'}), 200
+        return jsonify({'message': 'Data reset successful. Sample data generated for johndoe user, branches, and ATMs.'}), 200
 
     except Exception as e:
         app.logger.error(f"Error resetting data: {str(e)}")
         return jsonify({'error': 'An error occurred while resetting data'}), 500
-@app.route('/admin/deploy_data', methods=['POST'])
-def deploy_data():
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
 
-    target_uri = request.form.get('target_uri')
-    if not target_uri:
-        return jsonify({'error': 'No target URI provided'}), 400
+def create_branches():
+    branches = []
+    cities = [
+        ("New York", "NY", 40.7128, -74.0060),
+        ("Los Angeles", "CA", 34.0522, -118.2437),
+        ("Chicago", "IL", 41.8781, -87.6298),
+        ("Houston", "TX", 29.7604, -95.3698),
+        ("Phoenix", "AZ", 33.4484, -112.0740),
+        ("Philadelphia", "PA", 39.9526, -75.1652),
+        ("San Antonio", "TX", 29.4241, -98.4936),
+        ("San Diego", "CA", 32.7157, -117.1611),
+        ("Dallas", "TX", 32.7767, -96.7970),
+        ("San Jose", "CA", 37.3382, -121.8863)
+    ]
+    
+    for i, (city, state, lat, lon) in enumerate(cities):
+        branch = {
+            '_id': ObjectId(),
+            'name': f"MongoDBank {city} Branch",
+            'address': {
+                'street': f"{100+i} Main St",
+                'city': city,
+                'state': state,
+                'zipCode': f"1000{i}",
+                'country': "USA"
+            },
+            'phoneNumber': f"555-{1000+i:04d}",
+            'email': f"branch.{city.lower().replace(' ', '')}@mongodbank.com",
+            'manager': f"Manager{i+1}",
+            'services': ["Loans", "Deposits", "Wealth Management"],
+            'hours': {
+                'monday': {'open': "09:00", 'close': "17:00"},
+                'tuesday': {'open': "09:00", 'close': "17:00"},
+                'wednesday': {'open': "09:00", 'close': "17:00"},
+                'thursday': {'open': "09:00", 'close': "17:00"},
+                'friday': {'open': "09:00", 'close': "17:00"},
+                'saturday': {'open': "10:00", 'close': "14:00"},
+                'sunday': {'open': "Closed", 'close': "Closed"}
+            },
+            'location': {
+                'type': "Point",
+                'coordinates': [lon, lat]
+            }
+        }
+        branches.append(branch)
+    
+    return branches
 
-    try:
-        # Connect to the target database
-        target_client = MongoClient(target_uri)
-        target_db = target_client.get_default_database()
+def create_atms(branch_ids):
+    atms = []
+    for i, branch_id in enumerate(branch_ids):
+        # Create 2 ATMs for each branch
+        for j in range(12):
+            atm = {
+                '_id': ObjectId(),
+                'location': {
+                    'type': "Point",
+                    'coordinates': [random.uniform(-122, -71), random.uniform(25, 48)]  # Random US coordinates
+                },
+                'address': {
+                    'street': f"{200+i*2+j} ATM St",
+                    'city': "ATM City",
+                    'state': "AT",
+                    'zipCode': f"2000{i}",
+                    'country': "USA"
+                },
+                'type': random.choice(["Walk-up", "Drive-through"]),
+                'features': ["Cash Withdrawal", "Deposit", "Check Cashing"],
+                'accessibility': random.choice([True, False]),
+                'branchId': branch_id,
+                'status': "Operational"
+            }
+            atms.append(atm)
+    
+    return atms
 
-        # Connect to the source database
-        source_client = MongoClient(os.getenv('MONGO_URI'))
-        source_db = source_client.get_default_database()
+@app.route('/api/branches', methods=['GET'])
+def get_branches():
+    lat = float(request.args.get('lat'))
+    lon = float(request.args.get('lon'))
+    radius = float(request.args.get('radius', 10))  # Default 10 km
 
-        # Collections to copy
-        collections = ['customers', 'accounts', 'transactions', 'alerts']
+    branches = mongo.db.branches.find({
+        'location': {
+            '$near': {
+                '$geometry': {
+                    'type': "Point",
+                    'coordinates': [lon, lat]
+                },
+                '$maxDistance': radius * 100000  # Convert km to meters
+            }
+        }
+    })
 
-        for collection_name in collections:
-            # Clear existing data in target collection
-            target_db[collection_name].delete_many({})
+    return json.loads(json_util.dumps(list(branches)))
 
-            # Copy data from source to target
-            documents = list(source_db[collection_name].find())
-            if documents:
-                target_db[collection_name].insert_many(documents)
+@app.route('/api/atms', methods=['GET'])
+def get_atms():
+    lat = float(request.args.get('lat'))
+    lon = float(request.args.get('lon'))
+    radius = float(request.args.get('radius', 5))  # Default 5 km
 
-        return jsonify({'message': 'Data successfully deployed to target database'}), 200
+    atms = mongo.db.atms.find({
+        'location': {
+            '$near': {
+                '$geometry': {
+                    'type': "Point",
+                    'coordinates': [lon, lat]
+                },
+                '$maxDistance': radius * 100000  # Convert km to meters
+            }
+        }
+    })
 
-    except Exception as e:
-        app.logger.error(f"Error deploying data: {str(e)}")
-        return jsonify({'error': 'An error occurred while deploying data'}), 500
-
-    finally:
-        if 'target_client' in locals():
-            target_client.close()
-        if 'source_client' in locals():
-            source_client.close()
-
+    return json.loads(json_util.dumps(list(atms)))
+@app.route('/branch-locator')
+def branch_locator():
+    return render_template('branch_locator.html', GOOGLE_MAPS_API_KEY=app.config['GOOGLE_MAPS_API_KEY'])
 if __name__ == '__main__':
     app.run(debug=True)
