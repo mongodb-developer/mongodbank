@@ -11,7 +11,7 @@ const balanceChartCtx = document.getElementById('balanceChart').getContext('2d')
     const nextPageButton = document.getElementById('next-page');
 document.addEventListener('DOMContentLoaded', function () {
 
-    fetchDashboardMetrics;
+    updateDashboardMetrics();
 
     const watermarkPlugin = {
         id: 'watermark',
@@ -131,6 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     });
 
+    const accountSelect = document.getElementById('account-select');
     if (accountSelect) {
         accountSelect.addEventListener('change', function () {
             currentPage = 1;  // Reset to page 1 when account changes
@@ -482,34 +483,30 @@ function loadTransactions(accountId, page = 1) {
         });
 }
 
-function fetchDashboardMetrics() {
+function updateDashboardMetrics() {
     fetch('/api/dashboard_metrics')
         .then(response => response.json())
         .then(data => {
-            updateDashboardMetrics(data);
+            if (data.error) {
+                console.error('Error fetching dashboard metrics:', data.error);
+            } else {
+                safelyUpdateElement('total-balance', `$${data.total_balance.toFixed(2)}`);
+                safelyUpdateElement('recent-transaction-count', data.recent_transaction_count);
+                safelyUpdateElement('pending-review-count', data.pending_review_count);
+                safelyUpdateElement('alert-count', data.alert_count);
+            }
         })
         .catch(error => {
             console.error('Error fetching dashboard metrics:', error);
         });
 }
 
-function updateDashboardMetrics(data) {
-    const updateElement = (id, value) => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.textContent = value;
-        } else {
-            console.warn(`Element with id '${id}' not found in the DOM`);
-        }
-    };
-
-    if (data.error) {
-        console.error('Error in dashboard metrics:', data.error);
+function safelyUpdateElement(id, value) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = value;
     } else {
-        updateElement('total-balance', `$${data.total_balance.toFixed(2)}`);
-        updateElement('recent-transaction-count', data.recent_transaction_count);
-        updateElement('pending-review-count', data.pending_review_count);
-        updateElement('alert-count', data.alert_count);
+        console.warn(`Element with id '${id}' not found`);
     }
 }
 
