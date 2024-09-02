@@ -119,22 +119,48 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">Deploy Data to Custom MongoDB URI</h5>
-                    <form id="deploy-data-form">
+                    <form id="deploy-mongo-form">
                         <div class="mb-3">
-                            <label for="target-uri" class="form-label">Target MongoDB URI</label>
-                            <input type="text" class="form-control" id="target-uri" name="target_uri" required>
+                            <label for="mongo-uri" class="form-label">Target MongoDB URI</label>
+                            <input type="text" class="form-control" id="mongo-uri" name="mongo_uri" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Deploy Data</button>
+                        <button type="submit" class="btn btn-primary">Deploy MongoDB Data</button>
                     </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Deploy Data to Custom PostgreSQL URI</h5>
+                    <form id="deploy-postgres-form">
+                        <div class="mb-3">
+                            <label for="postgres-uri" class="form-label">Target PostgreSQL URI</label>
+                            <input type="text" class="form-control" id="postgres-uri" name="postgres_uri" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Deploy PostgreSQL Data</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card danger-zone">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">Danger Zone: Reset MongoDB Data</h5>
+                    <p class="card-text">This will clear all existing MongoDB data and generate sample data for the 'johndoe' user.</p>
+                    <button id="reset-mongo-data-btn" class="btn btn-danger">Reset MongoDB Data</button>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
             <div class="card danger-zone">
                 <div class="card-body">
-                    <h5 class="card-title text-danger">Danger Zone: Reset Data</h5>
-                    <p class="card-text">This will clear all existing data and generate sample data for the 'johndoe' user.</p>
-                    <button id="reset-data-btn" class="btn btn-danger">Reset Data</button>
+                    <h5 class="card-title text-danger">Danger Zone: Reset PostgreSQL Data</h5>
+                    <p class="card-text">This will clear all existing PostgreSQL data and generate sample data for the 'johndoe' user.</p>
+                    <button id="reset-postgres-data-btn" class="btn btn-danger">Reset PostgreSQL Data</button>
                 </div>
             </div>
         </div>
@@ -145,6 +171,5 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
-<script src="{{ url_for('static', filename='js/fraud-detection-animation.js') }}"></script>
 
 {% endblock %}

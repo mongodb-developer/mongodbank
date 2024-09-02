@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+    <h2>Query Comparison: MongoDB vs PostgreSQL</h2>
+    <div class="mb-3">
+        <label for="querySelector" class="form-label">Select Query Type:</label>
+        <select class="form-select" id="querySelector">
+            <option value="account_details">Account Details with Transaction Statistics</option>
+            <option value="customer_summary">Comprehensive Customer Summary</option>
+            <option value="fraud_analysis">Detailed Fraud Analysis</option>
+        </select>
+    </div>
+    <div class="row">
+        <div class="col-md-6">
+            <h3>PostgreSQL Query</h3>
+            <pre id="sqlQuery" class="bg-light p-3"></pre>
+        </div>
+        <div class="col-md-6">
+            <h3>MongoDB Query</h3>
+            <pre id="mongoQuery" class="bg-light p-3"></pre>
+        </div>
+    </div>
+    <button id="runQueries" class="btn btn-primary mt-3">Run Queries</button>
+    <div class="mt-3">
+        <h3>Results</h3>
+        <div id="results"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/performance_comparison.js') }}"></script>
+{% endblock %}

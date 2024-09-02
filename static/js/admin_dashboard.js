@@ -3,6 +3,23 @@
 document.addEventListener('DOMContentLoaded', function() {
     fetchDashboardMetrics();
     fetchTransactionVolume();
+    document.getElementById('deploy-mongo-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        deployData('mongodb', document.getElementById('mongo-uri').value);
+    });
+
+    document.getElementById('deploy-postgres-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        deployData('postgres', document.getElementById('postgres-uri').value);
+    });
+
+    document.getElementById('reset-mongo-data-btn').addEventListener('click', function() {
+        resetData('mongodb');
+    });
+
+    document.getElementById('reset-postgres-data-btn').addEventListener('click', function() {
+        resetData('postgres');
+    });
 });
 
 function fetchDashboardMetrics() {
@@ -93,6 +110,53 @@ function fetchTransactionVolume() {
         })
         .catch(error => console.error('Error fetching transaction volume:', error));
 }
+
+function deployData(dbType, uri) {
+    if (!uri) {
+        alert(`Please enter a ${dbType.toUpperCase()} URI`);
+        return;
+    }
+
+    fetch('/admin/deploy_data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ db_type: dbType, [`${dbType}_uri`]: uri }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message || data.error);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(`An error occurred while deploying ${dbType.toUpperCase()} data`);
+    });
+}
+
+function resetData(dbType) {
+    if (!confirm(`Are you sure you want to reset the ${dbType.toUpperCase()} data? This action cannot be undone.`)) {
+        return;
+    }
+
+    fetch('/admin/reset_data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ db_type: dbType }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message || data.error);
+        fetchDashboardMetrics();  // Refresh the dashboard data
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(`An error occurred while resetting ${dbType.toUpperCase()} data`);
+    });
+}
+
 
 document.getElementById('reset-data-btn').addEventListener('click', function() {
     if (confirm('Are you sure you want to reset all data? This action cannot be undone.')) {

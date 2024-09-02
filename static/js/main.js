@@ -309,6 +309,77 @@ except Exception as e:
     mongoDBERDButton.addEventListener('click', function() {
         mongoDBERDModal.show();
     });
+
+    const querySelector = document.getElementById('querySelector');
+    const sqlQueryElem = document.getElementById('sqlQuery');
+    const mongoQueryElem = document.getElementById('mongoQuery');
+    const runQueriesBtn = document.getElementById('runQueries');
+    const resultsElem = document.getElementById('results');
+
+    const queries = {
+        account_details: {
+            sql: `
+SELECT a.account_id, a.account_type, a.balance,
+       t.transaction_id, t.type, t.amount, t.timestamp
+FROM accounts a
+LEFT JOIN transactions t ON a.account_id = t.account_id
+WHERE a.account_id = ?
+ORDER BY t.timestamp DESC
+LIMIT 10;`,
+            mongo: `
+db.accounts.aggregate([
+  { $match: { _id: ObjectId("...") } },
+  { $lookup: {
+      from: "transactions",
+      localField: "_id",
+      foreignField: "account_id",
+      as: "transactions"
+    }
+  },
+  { $project: {
+      account_type: 1,
+      balance: 1,
+      transactions: { $slice: ["$transactions", 10] }
+    }
+  }
+])`
+        },
+        // Add more query types here
+    };
+
+    querySelector.addEventListener('change', updateQueries);
+    runQueriesBtn.addEventListener('click', runQueries);
+
+    function updateQueries() {
+        const selectedQuery = queries[querySelector.value];
+        sqlQueryElem.textContent = selectedQuery.sql;
+        mongoQueryElem.textContent = selectedQuery.mongo;
+    }
+
+    function runQueries() {
+        resultsElem.innerHTML = '<p>Running queries...</p>';
+        fetch('/api/run_performance_comparison', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ query_type: querySelector.value }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            resultsElem.innerHTML = `
+                <p>PostgreSQL Execution Time: ${data.postgres_time} ms</p>
+                <p>MongoDB Execution Time: ${data.mongo_time} ms</p>
+                <p>Performance Gain: ${data.performance_gain}x</p>
+            `;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            resultsElem.innerHTML = '<p>An error occurred while running the queries.</p>';
+        });
+    }
+
+    updateQueries();
 });
 
 let currentTransactionId = null;
