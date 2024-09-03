@@ -18,7 +18,7 @@ import json
 from bson import json_util
 import time
 
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunsplit
 from flask import jsonify
 from flask_cors import CORS
 import pymongo 
@@ -38,7 +38,17 @@ CORS(app)
 # Setup for original MongoDB
 parsed_uri = urlparse(app.config['MONGO_URI'])
 db_name = parsed_uri.path.lstrip('/').split('?')[0] or 'mongodbank'
-app.config['MONGO_URI'] = f"{parsed_uri.scheme}://{parsed_uri.netloc}/{db_name}"
+
+# Reconstruct the URI with the correct database name
+normalized_uri = urlunsplit((
+    parsed_uri.scheme,
+    parsed_uri.netloc,
+    f'/{db_name}',
+    parsed_uri.query,
+    parsed_uri.fragment
+))
+
+app.config['MONGO_URI'] = normalized_uri
 
 mongo = PyMongo(app)
 client = MongoClient(app.config['MONGO_URI'])
