@@ -3,52 +3,7 @@
 {% block head %}
     {{ super() }}
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <style>
-        #fraud-map { 
-            height: 400px; 
-            width: 100%;
-        }
-        .transaction-marker {
-            background-color: blue;
-            border-radius: 50%;
-            width: 10px;
-            height: 10px;
-        }
-        .fraud-alert {
-            background-color: red;
-            color: white;
-            padding: 5px;
-            border-radius: 5px;
-            font-weight: bold;
-            white-space: nowrap; /* Prevents text from wrapping */
-        }
-        .leaflet-popup-content-wrapper {
-            background: #000;
-            color: #fff;
-            border-radius: 5px;
-        }
-        .leaflet-popup-tip-container {
-            visibility: hidden;
-        }
-        .fraud-alert-banner {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: red;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 1.5em;
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            z-index: 1000;
-            white-space: nowrap;
-        }
-        .d-none {
-            display: none;
-        }
-    </style>
+    
 {% endblock %}
 
 {% block content %}
@@ -66,10 +21,7 @@
 
                     <button id="start-animation" class="btn btn-primary mt-3" disabled>Start Animation</button>
                 </div>
-                <div class="card-body">
-                    <div id="fraud-map" style="height: 400px; width: 100%;"></div>
-                    <button id="start-animation" class="btn btn-primary mt-3" disabled>Start Animation</button>
-                </div>
+            
             </div>
         </div>
 

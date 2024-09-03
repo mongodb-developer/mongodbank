@@ -17,8 +17,8 @@
                 <div class="accordion-body">
                     <div class="row">
                         <div class="col-md-4 mb-2">
-                            <button type="button" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#postgresERDModal">
-                                View PostgreSQL ERD
+                            <button type="button" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#normalizedERDModal">
+                                View Normalized ERD
                             </button>
                         </div>
                         <div class="col-md-4 mb-2">
@@ -110,8 +110,8 @@
                     </button>
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#postgresERDModal">
-                                View PostgreSQL ERD
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#normalizedERDModal">
+                                View Normalized ERD
                             </button>
                         </div>
                         <div class="col-md-6">
@@ -364,15 +364,15 @@
     </div>
 </div>
 
-<div class="modal fade" id="postgresERDModal" tabindex="-1" aria-labelledby="postgresERDModalLabel" aria-hidden="true">
+<div class="modal fade" id="normalizedERDModal" tabindex="-1" aria-labelledby="normalizedERDModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="postgresERDModalLabel">PostgreSQL ERD</h5>
+                <h5 class="modal-title" id="normalizedERDModalLabel">Normalized ERD</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <img src="{{ url_for('static', filename='img/erd-pg.svg') }}" alt="PostgreSQL ERD" class="img-fluid">
+                <img src="{{ url_for('static', filename='img/erd-pg.svg') }}" alt="Normalized ERD" class="img-fluid">
             </div>
         </div>
     </div>
