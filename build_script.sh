@@ -1,13 +1,11 @@
 #!/bin/bash
-
-# Exit immediately if a command exits with a non-zero status
 set -e
 
-# Update pip
-python -m pip install --upgrade pip
+# Update pip and install wheel
+pip install --upgrade pip wheel
 
-# Install wheel
-pip install wheel
+# Install psycopg2-binary separately
+pip install psycopg2-binary==2.9.5 --no-binary psycopg2-binary
 
-# Install the requirements
+# Install the rest of the requirements
 pip install -r requirements.txt

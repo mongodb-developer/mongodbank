@@ -21,6 +21,9 @@ import psycopg2
 from psycopg2.extras import execute_values
 from passlib.hash import scrypt
 from psycopg2.extras import RealDictCursor
+from psycopg2 import sql
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+
 from urllib.parse import urlparse
 from flask import jsonify
 from flask_cors import CORS
@@ -1120,51 +1123,298 @@ def reset_data():
 
 def create_branches():
     branches = []
-    cities = [
-        ("New York", "NY", 40.7128, -74.0060),
-        ("Los Angeles", "CA", 34.0522, -118.2437),
-        ("Chicago", "IL", 41.8781, -87.6298),
-        ("Houston", "TX", 29.7604, -95.3698),
-        ("Phoenix", "AZ", 33.4484, -112.0740),
-        ("Philadelphia", "PA", 39.9526, -75.1652),
-        ("San Antonio", "TX", 29.4241, -98.4936),
-        ("San Diego", "CA", 32.7157, -117.1611),
-        ("Dallas", "TX", 32.7767, -96.7970),
-        ("San Jose", "CA", 37.3382, -121.8863)
-    ]
-    
-    for i, (city, state, lat, lon) in enumerate(cities):
-        branch = {
-            '_id': ObjectId(),
-            'name': f"MongoDBank {city} Branch",
-            'address': {
-                'street': f"{100+i} Main St",
-                'city': city,
-                'state': state,
-                'zipCode': f"1000{i}",
-                'country': "USA"
-            },
-            'phoneNumber': f"555-{1000+i:04d}",
-            'email': f"branch.{city.lower().replace(' ', '')}@mongodbank.com",
-            'manager': f"Manager{i+1}",
-            'services': ["Loans", "Deposits", "Wealth Management"],
-            'hours': {
-                'monday': {'open': "09:00", 'close': "17:00"},
-                'tuesday': {'open': "09:00", 'close': "17:00"},
-                'wednesday': {'open': "09:00", 'close': "17:00"},
-                'thursday': {'open': "09:00", 'close': "17:00"},
-                'friday': {'open': "09:00", 'close': "17:00"},
-                'saturday': {'open': "10:00", 'close': "14:00"},
-                'sunday': {'open': "Closed", 'close': "Closed"}
-            },
-            'location': {
-                'type': "Point",
-                'coordinates': [lon, lat]
-            }
-        }
-        branches.append(branch)
-    
+    for i in range(5):
+        branches.append((
+            f'Branch {i+1}',
+            f'{100+i} Main St',
+            'Anytown',
+            'ST',
+            f'1000{i}',
+            'USA',
+            f'555-000-000{i}',
+            f'branch{i+1}@mongodbank.com',
+            f'Manager {i+1}',
+            random.uniform(25, 48),
+            random.uniform(-122, -71)
+        ))
     return branches
+
+def deploy_database(uri):
+    conn = None
+    try:
+        conn = psycopg2.connect(uri)
+        conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cur = conn.cursor()
+
+        print("Creating tables...")
+
+        # Create customers table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS customers (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(50) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                email VARCHAR(100) UNIQUE NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL
+            )
+        """)
+
+        # Create branches table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS branches (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                street VARCHAR(255) NOT NULL,
+                city VARCHAR(100) NOT NULL,
+                state VARCHAR(50) NOT NULL,
+                zip_code VARCHAR(20) NOT NULL,
+                country VARCHAR(50) NOT NULL,
+                phone_number VARCHAR(20) NOT NULL,
+                email VARCHAR(100) NOT NULL,
+                manager VARCHAR(100) NOT NULL,
+                latitude DECIMAL(10, 8) NOT NULL,
+                longitude DECIMAL(11, 8) NOT NULL
+            )
+        """)
+
+        # Create accounts table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS accounts (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER REFERENCES customers(id),
+                branch_id INTEGER REFERENCES branches(id),
+                account_type VARCHAR(50) NOT NULL,
+                balance NUMERIC(10, 2) NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL
+            )
+        """)
+
+        # Create transactions table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id SERIAL PRIMARY KEY,
+                account_id INTEGER REFERENCES accounts(id),
+                type VARCHAR(50) NOT NULL,
+                amount NUMERIC(10, 2) NOT NULL,
+                timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+                from_account_id INTEGER REFERENCES accounts(id),
+                to_account_id INTEGER REFERENCES accounts(id)
+            )
+        """)
+
+        # Create alerts table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS alerts (
+                id SERIAL PRIMARY KEY,
+                customer_id INTEGER REFERENCES customers(id),
+                account_id INTEGER REFERENCES accounts(id),
+                transaction_id INTEGER REFERENCES transactions(id),
+                type VARCHAR(50) NOT NULL,
+                message TEXT NOT NULL,
+                timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+                resolved BOOLEAN NOT NULL
+            )
+        """)
+
+        # Create ATMs table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS atms (
+                id SERIAL PRIMARY KEY,
+                branch_id INTEGER REFERENCES branches(id),
+                street VARCHAR(255) NOT NULL,
+                city VARCHAR(100) NOT NULL,
+                state VARCHAR(50) NOT NULL,
+                zip_code VARCHAR(20) NOT NULL,
+                country VARCHAR(50) NOT NULL,
+                latitude DECIMAL(10, 8) NOT NULL,
+                longitude DECIMAL(11, 8) NOT NULL,
+                type VARCHAR(50) NOT NULL,
+                status VARCHAR(50) NOT NULL,
+                accessibility BOOLEAN NOT NULL
+            )
+        """)
+
+        # Create branch_services table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS branch_services (
+                id SERIAL PRIMARY KEY,
+                branch_id INTEGER REFERENCES branches(id),
+                service VARCHAR(100) NOT NULL
+            )
+        """)
+
+        # Create branch_hours table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS branch_hours (
+                id SERIAL PRIMARY KEY,
+                branch_id INTEGER REFERENCES branches(id),
+                day_of_week VARCHAR(10) NOT NULL,
+                open_time TIME NOT NULL,
+                close_time TIME NOT NULL
+            )
+        """)
+
+        # Create atm_features table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS atm_features (
+                id SERIAL PRIMARY KEY,
+                atm_id INTEGER REFERENCES atms(id),
+                feature VARCHAR(100) NOT NULL
+            )
+        """)
+
+        # Create fraud_flags table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS fraud_flags (
+                id SERIAL PRIMARY KEY,
+                transaction_id INTEGER REFERENCES transactions(id),
+                flag VARCHAR(50) NOT NULL
+            )
+        """)
+
+        print("Tables created successfully")
+
+        print("Inserting sample data...")
+
+        # Create branches
+        branches = create_branches()
+        branch_ids = []
+        for branch in branches:
+            cur.execute("""
+                INSERT INTO branches (name, street, city, state, zip_code, country, phone_number, email, manager, latitude, longitude)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id;
+            """, branch)
+            branch_ids.append(cur.fetchone()[0])
+
+        # Create branch services and hours
+        services = ["Loans", "Deposits", "Wealth Management"]
+        hours = [("monday", "09:00", "17:00"), ("tuesday", "09:00", "17:00"), ("wednesday", "09:00", "17:00"),
+                 ("thursday", "09:00", "17:00"), ("friday", "09:00", "17:00"), ("saturday", "10:00", "14:00")]
+        
+        for branch_id in branch_ids:
+            cur.executemany("INSERT INTO branch_services (branch_id, service) VALUES (%s, %s)", 
+                            [(branch_id, service) for service in services])
+            cur.executemany("INSERT INTO branch_hours (branch_id, day_of_week, open_time, close_time) VALUES (%s, %s, %s, %s)", 
+                            [(branch_id, day, open_time, close_time) for day, open_time, close_time in hours])
+
+        # Create ATMs and features
+        for i, branch_id in enumerate(branch_ids):
+            for j in range(2):
+                cur.execute("""
+                    INSERT INTO atms (branch_id, street, city, state, zip_code, country, latitude, longitude, type, status, accessibility)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id;
+                """, (
+                    branch_id,
+                    f"{200+i*2+j} ATM St",
+                    "ATM City",
+                    "AT",
+                    f"2000{i}",
+                    "USA",
+                    random.uniform(25, 48),
+                    random.uniform(-122, -71),
+                    random.choice(["Walk-up", "Drive-through"]),
+                    "Operational",
+                    random.choice([True, False])
+                ))
+                atm_id = cur.fetchone()[0]
+                features = ["Cash Withdrawal", "Deposit", "Check Cashing"]
+                cur.executemany("INSERT INTO atm_features (atm_id, feature) VALUES (%s, %s)",
+                                [(atm_id, feature) for feature in features])
+
+        # Create johndoe user and accounts
+        cur.execute("""
+            INSERT INTO customers (username, password, email, created_at)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id;
+        """, ('johndoe', scrypt.hash('password123'), 'johndoe@example.com', datetime.now(timezone.utc)))
+        johndoe_id = cur.fetchone()[0]
+
+        cur.execute("""
+            INSERT INTO accounts (customer_id, branch_id, account_type, balance, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id;
+        """, (johndoe_id, random.choice(branch_ids), 'Checking', 5000.00, datetime.now(timezone.utc)))
+        checking_id = cur.fetchone()[0]
+
+        cur.execute("""
+            INSERT INTO accounts (customer_id, branch_id, account_type, balance, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id;
+        """, (johndoe_id, random.choice(branch_ids), 'Savings', 10000.00, datetime.now(timezone.utc)))
+        savings_id = cur.fetchone()[0]
+
+        # Generate sample transactions
+        current_date = datetime.now(timezone.utc) - timedelta(days=30)
+        account_balances = {checking_id: Decimal('5000.00'), savings_id: Decimal('10000.00')}
+
+        for _ in range(100):
+            transaction_type = random.choice(['deposit', 'withdrawal', 'transfer'])
+            amount = round_to_penny(random.uniform(10, 1000))
+            
+            from_account = random.choice([checking_id, savings_id])
+            to_account = checking_id if from_account == savings_id else savings_id
+
+            if transaction_type in ['withdrawal', 'transfer']:
+                max_amount = account_balances[from_account]
+                amount = min(amount, max_amount)
+
+            cur.execute("""
+                INSERT INTO transactions (account_id, type, amount, timestamp, from_account_id, to_account_id)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id;
+            """, (from_account if transaction_type != 'transfer' else None, 
+                  transaction_type, 
+                  float(amount), 
+                  current_date, 
+                  from_account if transaction_type in ['withdrawal', 'transfer'] else None,
+                  to_account if transaction_type == 'transfer' else None))
+            
+            transaction_id = cur.fetchone()[0]
+
+            if transaction_type == 'transfer':
+                account_balances[from_account] -= amount
+                account_balances[to_account] += amount
+            elif transaction_type == 'deposit':
+                account_balances[from_account] += amount
+            else:  # withdrawal
+                account_balances[from_account] -= amount
+
+            if random.random() < 0.1:
+                fraud_type = random.choice(['velocity', 'location'])
+                cur.execute("INSERT INTO fraud_flags (transaction_id, flag) VALUES (%s, %s)", 
+                            (transaction_id, fraud_type))
+                
+                cur.execute("""
+                    INSERT INTO alerts (customer_id, account_id, transaction_id, type, message, timestamp, resolved)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (johndoe_id, 
+                      from_account if transaction_type != 'transfer' else None,
+                      transaction_id,
+                      'Potential Fraud',
+                      f"Suspicious activity detected: {fraud_type}",
+                      current_date,
+                      False))
+
+            current_date += timedelta(minutes=random.randint(30, 720))
+
+        # Update final account balances
+        cur.execute("UPDATE accounts SET balance = %s WHERE id = %s", (float(account_balances[checking_id]), checking_id))
+        cur.execute("UPDATE accounts SET balance = %s WHERE id = %s", (float(account_balances[savings_id]), savings_id))
+
+        print("Sample data inserted successfully")
+        print("Database deployment process completed")
+        return "Database deployment process completed"
+
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return f"Unexpected error: {e}"
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 def create_atms(branch_ids):
     atms = []
@@ -1334,29 +1584,29 @@ def run_performance_comparison():
                     thirty_days_ago = datetime.now() - timedelta(days=30)
                     cur.execute("""
                         WITH fraudulent_transactions AS (
-                            SELECT t.id, t.account_id, t.type, t.amount, t.timestamp, t.fraud_flags,
-                                   a.account_type,
-                                   c.username as customer_name,
-                                   ROW_NUMBER() OVER (PARTITION BY t.account_id ORDER BY t.timestamp DESC) as rn
+                            SELECT t.id, t.account_id, t.type, t.amount, t.timestamp,
+                                ff.flag as fraud_flag,
+                                a.account_type,
+                                c.username as customer_name,
+                                ROW_NUMBER() OVER (PARTITION BY t.account_id ORDER BY t.timestamp DESC) as rn
                             FROM transactions t
                             JOIN accounts a ON t.account_id = a.id
                             JOIN customers c ON a.customer_id = c.id
+                            JOIN fraud_flags ff ON t.id = ff.transaction_id
                             WHERE t.timestamp >= %s
-                              AND t.fraud_flags IS NOT NULL
-                              AND t.fraud_flags != '{}'
                         ),
                         fraud_stats AS (
                             SELECT account_id,
-                                   COUNT(*) as fraud_count,
-                                   AVG(amount) as avg_fraud_amount,
-                                   SUM(amount) as total_fraud_amount
+                                COUNT(*) as fraud_count,
+                                AVG(amount) as avg_fraud_amount,
+                                SUM(amount) as total_fraud_amount
                             FROM fraudulent_transactions
                             GROUP BY account_id
                         )
                         SELECT ft.id as transaction_id, ft.type, ft.amount, ft.timestamp,
-                               ft.fraud_flags, ft.account_type, ft.customer_name,
-                               fs.fraud_count, fs.avg_fraud_amount, fs.total_fraud_amount,
-                               (SELECT COUNT(*) FROM transactions 
+                            ft.fraud_flag, ft.account_type, ft.customer_name,
+                            fs.fraud_count, fs.avg_fraud_amount, fs.total_fraud_amount,
+                            (SELECT COUNT(*) FROM transactions 
                                 WHERE account_id = ft.account_id AND timestamp >= %s) as total_transactions
                         FROM fraudulent_transactions ft
                         JOIN fraud_stats fs ON ft.account_id = fs.account_id
@@ -1719,291 +1969,14 @@ def round_to_penny(amount):
                 return Decimal(amount).quantize(Decimal('.01'), rounding=ROUND_HALF_UP)
 
 @app.route('/admin/deploy_data', methods=['POST'])
-def deploy_data():
-    if 'admin_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    db_type = request.json.get('db_type')
-    uri = request.json.get(f'{db_type}_uri')
-
-    if not uri:
-        return jsonify({'error': f'No {db_type.upper()} URI provided'}), 400
-
+def admin_deploy_data():
     try:
-        if db_type == 'mongodb':
-            # MongoDB deployment
-            client = MongoClient(uri)
-            db = client.get_database()
-
-            # Clear existing data
-            db.customers.delete_many({})
-            db.accounts.delete_many({})
-            db.transactions.delete_many({})
-            db.alerts.delete_many({})
-            db.branches.delete_many({})
-            db.atms.delete_many({})
-
-            # Create branches
-            branches = create_branches()
-            branch_ids = [branch['_id'] for branch in branches]
-            db.branches.insert_many(branches)
-
-            # Create ATMs
-            atms = create_atms(branch_ids)
-            db.atms.insert_many(atms)
-
-            # Create johndoe user
-            johndoe_id = ObjectId()
-            db.customers.insert_one({
-                '_id': johndoe_id,
-                'username': 'johndoe',
-                'password': scrypt.hash('password123'),
-                'email': 'johndoe@example.com',
-                'created_at': datetime.now(timezone.utc)
-            })
-
-            # Create accounts for johndoe
-            checking_id = ObjectId()
-            savings_id = ObjectId()
-            accounts = [
-                {
-                    '_id': checking_id,
-                    'customer_id': johndoe_id,
-                    'account_type': 'Checking',
-                    'balance': float('5000.00'),
-                    'created_at': datetime.now(timezone.utc),
-                    'branch_id': random.choice(branch_ids)
-                },
-                {
-                    '_id': savings_id,
-                    'customer_id': johndoe_id,
-                    'account_type': 'Savings',
-                    'balance': float('10000.00'),
-                    'created_at': datetime.now(timezone.utc),
-                    'branch_id': random.choice(branch_ids)
-                }
-            ]
-            db.accounts.insert_many(accounts)
-
-            # Generate sample transactions
-            transactions = []
-            alerts = []
-            current_date = datetime.now(timezone.utc) - timedelta(days=30)
-            account_balances = {str(checking_id): Decimal('5000.00'), str(savings_id): Decimal('10000.00')}
-
-            for _ in range(100):
-                transaction_type = random.choice(['deposit', 'withdrawal', 'transfer'])
-                amount = round_to_penny(random.uniform(10, 1000))
-                
-                from_account = random.choice([checking_id, savings_id])
-                to_account = checking_id if from_account == savings_id else savings_id
-
-                if transaction_type in ['withdrawal', 'transfer']:
-                    max_amount = account_balances[str(from_account)]
-                    amount = min(amount, max_amount)
-
-                transaction = {
-                    '_id': ObjectId(),
-                    'customer_id': johndoe_id,
-                    'account_id': from_account if transaction_type != 'transfer' else None,
-                    'type': transaction_type,
-                    'amount': float(amount),
-                    'timestamp': current_date,
-                }
-
-                if transaction_type == 'transfer':
-                    transaction['from_account'] = from_account
-                    transaction['to_account'] = to_account
-                    account_balances[str(from_account)] -= amount
-                    account_balances[str(to_account)] += amount
-                elif transaction_type == 'deposit':
-                    account_balances[str(from_account)] += amount
-                else:  # withdrawal
-                    account_balances[str(from_account)] -= amount
-
-                if random.random() < 0.1:
-                    fraud_type = random.choice(['velocity', 'location'])
-                    transaction['fraud_flags'] = [fraud_type]
-                    
-                    alert = {
-                        'customer_id': johndoe_id,
-                        'account_id': transaction['account_id'] or transaction['from_account'],
-                        'transaction_id': transaction['_id'],
-                        'type': 'Potential Fraud',
-                        'message': f"Suspicious activity detected: {fraud_type}",
-                        'timestamp': current_date,
-                        'resolved': False
-                    }
-                    alerts.append(alert)
-
-                transactions.append(transaction)
-                current_date += timedelta(minutes=random.randint(30, 720))
-
-            db.transactions.insert_many(transactions)
-            if alerts:
-                db.alerts.insert_many(alerts)
-
-            db.accounts.update_one({'_id': checking_id}, {'$set': {'balance': float(account_balances[str(checking_id)])}})
-            db.accounts.update_one({'_id': savings_id}, {'$set': {'balance': float(account_balances[str(savings_id)])}})
-
-            message = "MongoDB data deployed successfully"
-
-        elif db_type == 'postgres':
-            # PostgreSQL deployment
-            conn = psycopg2.connect(uri)
-            cur = conn.cursor()
-
-            # Clear existing data
-            cur.execute("""
-                        TRUNCATE customers, branches, branch_services, branch_hours, accounts, 
-                                transactions, fraud_flags, alerts, atms, atm_features CASCADE;
-                    """)
-                
-                    # Reset sequences
-            tables = ['customers', 'branches', 'accounts', 'transactions', 'alerts', 'atms']
-            # for table in tables:
-            #     cur.execute(f"ALTER SEQUENCE {table}_id_seq RESTART WITH 1;")
-            # Create branches
-            branches = create_branches()
-            branch_ids = []
-            for branch in branches:
-                cur.execute("""
-                    INSERT INTO branches (name, street, city, state, zip_code, country, phone_number, email, manager, latitude, longitude)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    RETURNING id;
-                """, branch)
-                branch_ids.append(cur.fetchone()[0])
-
-            # Create branch services and hours
-            services = ["Loans", "Deposits", "Wealth Management"]
-            hours = [("monday", "09:00", "17:00"), ("tuesday", "09:00", "17:00"), ("wednesday", "09:00", "17:00"),
-                     ("thursday", "09:00", "17:00"), ("friday", "09:00", "17:00"), ("saturday", "10:00", "14:00")]
-            
-            for branch_id in branch_ids:
-                cur.executemany("INSERT INTO branch_services (branch_id, service) VALUES (%s, %s)", 
-                                [(branch_id, service) for service in services])
-                cur.executemany("INSERT INTO branch_hours (branch_id, day_of_week, open_time, close_time) VALUES (%s, %s, %s, %s)", 
-                                [(branch_id, day, open_time, close_time) for day, open_time, close_time in hours])
-
-            # Create ATMs and features
-            for i, branch_id in enumerate(branch_ids):
-                for j in range(2):
-                    cur.execute("""
-                        INSERT INTO atms (branch_id, street, city, state, zip_code, country, latitude, longitude, type, status, accessibility)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        RETURNING id;
-                    """, (
-                        branch_id,
-                        f"{200+i*2+j} ATM St",
-                        "ATM City",
-                        "AT",
-                        f"2000{i}",
-                        "USA",
-                        random.uniform(25, 48),
-                        random.uniform(-122, -71),
-                        random.choice(["Walk-up", "Drive-through"]),
-                        "Operational",
-                        random.choice([True, False])
-                    ))
-                    atm_id = cur.fetchone()[0]
-                    features = ["Cash Withdrawal", "Deposit", "Check Cashing"]
-                    cur.executemany("INSERT INTO atm_features (atm_id, feature) VALUES (%s, %s)",
-                                    [(atm_id, feature) for feature in features])
-
-            # Create johndoe user and accounts
-            cur.execute("""
-                INSERT INTO customers (username, password, email, created_at)
-                VALUES (%s, %s, %s, %s)
-                RETURNING id;
-            """, ('johndoe', scrypt.hash('password123'), 'johndoe@example.com', datetime.now(timezone.utc)))
-            johndoe_id = cur.fetchone()[0]
-
-            cur.execute("""
-                INSERT INTO accounts (customer_id, branch_id, account_type, balance, created_at)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id;
-            """, (johndoe_id, random.choice(branch_ids), 'Checking', 5000.00, datetime.now(timezone.utc)))
-            checking_id = cur.fetchone()[0]
-
-            cur.execute("""
-                INSERT INTO accounts (customer_id, branch_id, account_type, balance, created_at)
-                VALUES (%s, %s, %s, %s, %s)
-                RETURNING id;
-            """, (johndoe_id, random.choice(branch_ids), 'Savings', 10000.00, datetime.now(timezone.utc)))
-            savings_id = cur.fetchone()[0]
-
-            # Generate sample transactions
-            current_date = datetime.now(timezone.utc) - timedelta(days=30)
-            account_balances = {checking_id: Decimal('5000.00'), savings_id: Decimal('10000.00')}
-
-            for _ in range(100):
-                transaction_type = random.choice(['deposit', 'withdrawal', 'transfer'])
-                amount = round_to_penny(random.uniform(10, 1000))
-                
-                from_account = random.choice([checking_id, savings_id])
-                to_account = checking_id if from_account == savings_id else savings_id
-
-                if transaction_type in ['withdrawal', 'transfer']:
-                    max_amount = account_balances[from_account]
-                    amount = min(amount, max_amount)
-
-                cur.execute("""
-                    INSERT INTO transactions (account_id, type, amount, timestamp, from_account_id, to_account_id)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    RETURNING id;
-                """, (from_account if transaction_type != 'transfer' else None, 
-                      transaction_type, 
-                      float(amount), 
-                      current_date, 
-                      from_account if transaction_type in ['withdrawal', 'transfer'] else None,
-                      to_account if transaction_type == 'transfer' else None))
-                
-                transaction_id = cur.fetchone()[0]
-
-                if transaction_type == 'transfer':
-                    account_balances[from_account] -= amount
-                    account_balances[to_account] += amount
-                elif transaction_type == 'deposit':
-                    account_balances[from_account] += amount
-                else:  # withdrawal
-                    account_balances[from_account] -= amount
-
-                if random.random() < 0.1:
-                    fraud_type = random.choice(['velocity', 'location'])
-                    cur.execute("INSERT INTO fraud_flags (transaction_id, flag) VALUES (%s, %s)", 
-                                (transaction_id, fraud_type))
-                    
-                    cur.execute("""
-                        INSERT INTO alerts (customer_id, account_id, transaction_id, type, message, timestamp, resolved)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """, (johndoe_id, 
-                          from_account if transaction_type != 'transfer' else None,
-                          transaction_id,
-                          'Potential Fraud',
-                          f"Suspicious activity detected: {fraud_type}",
-                          current_date,
-                          False))
-
-                current_date += timedelta(minutes=random.randint(30, 720))
-
-            # Update final account balances
-            cur.execute("UPDATE accounts SET balance = %s WHERE id = %s", (float(account_balances[checking_id]), checking_id))
-            cur.execute("UPDATE accounts SET balance = %s WHERE id = %s", (float(account_balances[savings_id]), savings_id))
-
-            conn.commit()
-            cur.close()
-            conn.close()
-
-            message = "PostgreSQL data deployed successfully"
-
-        else:
-            return jsonify({'error': 'Invalid database type'}), 400
-
-        return jsonify({'message': message}), 200
-
+        uri = app.config['SQLALCHEMY_DATABASE_URI']  # Assuming you have this config
+        result = deploy_database(uri)
+        return jsonify({"message": result}), 200
     except Exception as e:
-        app.logger.error(f"Error deploying data: {str(e)}")
-        return jsonify({'error': 'An error occurred while deploying data'}), 500
+        app.logger.error(f"Error in admin_deploy_data: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
