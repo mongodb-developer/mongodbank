@@ -1,0 +1,19 @@
+{
+  "name": "banking_app",
+  "version": "1.0.0",
+  "description": "Banking app example for MongoDB",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "next": "9.4.5-canary.18",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

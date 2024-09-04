@@ -37,6 +37,24 @@ function simulateLocationCheck() {
     performTransaction(accountId, amount, 'location', { latitude: lat, longitude: lon });
 }
 
+function showCodeSnippet(snippetType) {
+    fetch(`/get_code/${snippetType}`)
+        .then(response => response.json())
+        .then(data => {
+            // Assuming you have a modal to display the code snippet
+            document.getElementById('codeSnippetTitle').textContent = data.title;
+            document.getElementById('codeSnippetBody').textContent = data.code;
+            
+            // Show the modal
+            const codeModal = new bootstrap.Modal(document.getElementById('codeModal'));
+            codeModal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to load code snippet');
+        });
+}
+
 // Function to show an error message
 function showError(message) {
     const errorMessageDiv = document.getElementById('error-message');

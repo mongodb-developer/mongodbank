@@ -350,6 +350,22 @@ def get_code(endpoint):
             'description': 'This route handles user authentication. It checks the provided username and password against the stored values in the database and creates a session upon successful login.',
             'docs_link': 'https://docs.mongodb.com/manual/reference/method/db.collection.findOne/'  # Example link
         },
+        'location-check': {
+            'title': 'Location Check Logic',
+            'code': '''
+            # Location Check Logic
+            previous_transaction = db.transactions.find_one(
+                {'account_id': ObjectId(account_id)},
+                sort=[('timestamp', -1)]
+            )
+            if previous_transaction and location:
+                prev_location = previous_transaction.get('location')
+                if prev_location and calculate_distance(location, prev_location) > 1000:  # Example threshold in km
+                    fraud_flags.append('location')
+            ''',
+                        'description': 'This logic compares the current transaction location with the previous transaction location. If the distance exceeds a certain threshold, the transaction is flagged as potentially fraudulent.',
+                        'docs_link': 'https://www.mongodb.com/docs/manual/reference/method/db.collection.findOne/'
+        },
         'get_transactions': {
             'title': 'Get Transactions Route',
             'code': inspect.getsource(get_transactions),
