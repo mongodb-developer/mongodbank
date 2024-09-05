@@ -83,11 +83,25 @@
                         </div>
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-danger">Simulate Location Check</button>
-                            <button type="button" class="btn btn-outline-secondary" onclick="showCodeSnippet('location-check')">Show Location Check Logic</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="showCodeSnippet('location_check')">Show Location Check Logic</button>
                             <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#locationCheckInfoModal">How Location Check Works</button>
                         </div>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="codeModal" tabindex="-1" aria-labelledby="codeSnippetTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="codeSnippetTitle">Code Snippet</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="codeSnippetBody"></pre>
             </div>
         </div>
     </div>

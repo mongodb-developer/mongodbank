@@ -41,10 +41,16 @@ function showCodeSnippet(snippetType) {
     fetch(`/get_code/${snippetType}`)
         .then(response => response.json())
         .then(data => {
-            // Assuming you have a modal to display the code snippet
-            document.getElementById('codeSnippetTitle').textContent = data.title;
-            document.getElementById('codeSnippetBody').textContent = data.code;
-            
+            // Check if the title and body elements exist
+            const titleElement = document.getElementById('codeSnippetTitle');
+            const bodyElement = document.getElementById('codeSnippetBody');
+            if (!titleElement || !bodyElement) {
+                throw new Error('Modal elements not found');
+            }
+            // Set the title and body content
+            titleElement.textContent = data.title;
+            bodyElement.textContent = data.code;
+
             // Show the modal
             const codeModal = new bootstrap.Modal(document.getElementById('codeModal'));
             codeModal.show();
@@ -139,5 +145,11 @@ document.addEventListener('DOMContentLoaded', function () {
             simulateLocationCheck();
         });
     }
+    document.querySelectorAll('.btn-outline-secondary').forEach(button => {
+        button.addEventListener('click', function() {
+            const snippetType = this.getAttribute('data-snippet');
+            showCodeSnippet(snippetType);
+        });
+    });
 
 });

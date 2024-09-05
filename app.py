@@ -1,5 +1,5 @@
 import inspect
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, make_response, jsonify, session, request
+from flask import Flask, redirect, render_template, request, jsonify, session, redirect, url_for, make_response, jsonify, session, request
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
@@ -70,6 +70,8 @@ def round_to_penny(amount):
 
 @app.route('/')
 def index():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
     return render_template('index.html')
 
 @app.route('/login', methods=['POST'])
@@ -350,7 +352,19 @@ def get_code(endpoint):
             'description': 'This route handles user authentication. It checks the provided username and password against the stored values in the database and creates a session upon successful login.',
             'docs_link': 'https://docs.mongodb.com/manual/reference/method/db.collection.findOne/'  # Example link
         },
-        'location-check': {
+        'velocity_check': {
+            'title': 'Velocity Check Logic',
+            'code': '''
+            # Velocity Check Logic
+            velocity_count = db.transactions.count_documents({
+                'account_id': ObjectId(account_id),
+                'timestamp': {'$gte': timestamp - datetime.timedelta(hours=1)}
+            })
+            if velocity_count > 10:  # Example threshold
+                fraud_flags.append('velocity')
+            '''
+        },
+        'location_check': {
             'title': 'Location Check Logic',
             'code': '''
             # Location Check Logic
@@ -360,11 +374,9 @@ def get_code(endpoint):
             )
             if previous_transaction and location:
                 prev_location = previous_transaction.get('location')
-                if prev_location and calculate_distance(location, prev_location) > 1000:  # Example threshold in km
+                if prev_location and calculate_distance(location, prev_location) > 1000:
                     fraud_flags.append('location')
-            ''',
-                        'description': 'This logic compares the current transaction location with the previous transaction location. If the distance exceeds a certain threshold, the transaction is flagged as potentially fraudulent.',
-                        'docs_link': 'https://www.mongodb.com/docs/manual/reference/method/db.collection.findOne/'
+            '''
         },
         'get_transactions': {
             'title': 'Get Transactions Route',

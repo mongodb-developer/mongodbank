@@ -3,6 +3,12 @@
 <div class="container mt-5">
     <h2>Query Comparison: Original MongoDB vs Normalized MongoDB</h2>
     
+    <!-- ERD Buttons -->
+    <div class="mb-4 text-center">
+        <button id="showERD" class="btn btn-info">Show MongoDB ERD</button>
+        <button id="showSQLERD" class="btn btn-info">Show SQL ERD</button>
+    </div>
+
     <div class="mb-3">
         <label for="querySelector" class="form-label">Select Query Type:</label>
         <select id="querySelector" class="form-select">
@@ -30,8 +36,38 @@
         <div id="results"></div>
     </div>
 </div>
+
+<!-- ERD Modal -->
+<div class="modal fade" id="erdModal" tabindex="-1" aria-labelledby="erdModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="erdModalLabel">Entity Relationship Diagram</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="erdImage" src="" alt="ERD" class="img-fluid">
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/performance_comparison.js') }}"></script>
+<script>
+    // Show MongoDB ERD in modal
+    document.getElementById('showERD').addEventListener('click', function() {
+        const erdModal = new bootstrap.Modal(document.getElementById('erdModal'));
+        document.getElementById('erdImage').src = '/static/img/erd-mdb.svg';  // Update the image source for MongoDB ERD
+        erdModal.show();
+    });
+
+    // Show SQL ERD in modal
+    document.getElementById('showSQLERD').addEventListener('click', function() {
+        const erdModal = new bootstrap.Modal(document.getElementById('erdModal'));
+        document.getElementById('erdImage').src = '/static/img/erd-pg.svg';  // Update the image source for SQL ERD
+        erdModal.show();
+    });
+</script>
 {% endblock %}
