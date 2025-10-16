@@ -9,7 +9,7 @@ from passlib.hash import scrypt
 DB_PARAMS = {
     "dbname": "mongodbank",
     "user": "michael.lynn",
-    "password": "M0ng0DB22!",
+    "password": "******!",
     "host": "localhost"
 }
 
