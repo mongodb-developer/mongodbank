@@ -871,11 +871,27 @@ def get_dashboard_metrics():
         total_balance_result = list(total_balance_cursor)
         total_balance = total_balance_result[0]["total_balance"] if total_balance_result else 0
 
-        # Calculate recent transactions
-        recent_transaction_count = db.transactions.count_documents({
-            "account_id": {'$in': [account['_id'] for account in db.accounts.find({'customer_id': ObjectId(user_id)})]},
-            "timestamp": {"$gte": datetime.now() - timedelta(days=7)}
-        })
+        account_ids = [account['_id'] for account in db.accounts.find({'customer_id': ObjectId(user_id)})]
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+        print(f"User ID: {user_id}")
+        print(f"Account IDs: {account_ids}")
+        print(f"Seven days ago: {seven_days_ago}")
+
+        recent_transactions = list(db.transactions.find({
+            "account_id": {'$in': account_ids},
+            "timestamp": {"$gte": seven_days_ago}
+        }))
+
+        print(f"Recent transactions: {recent_transactions}")
+
+        recent_transaction_count = len(recent_transactions)
+
+        # # Calculate recent transactions
+        # recent_transaction_count = db.transactions.count_documents({
+        #     "account_id": {'$in': [account['_id'] for account in db.accounts.find({'customer_id': ObjectId(user_id)})]},
+        #     "timestamp": {"$gte": datetime.now(timezone.utc) - timedelta(days=7)}
+        # })
 
         # Calculate pending reviews
         pending_review_count = db.transactions.count_documents({
