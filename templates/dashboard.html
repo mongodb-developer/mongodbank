@@ -100,7 +100,7 @@
                     {% for account in accounts %}
                     <li class="list-group-item d-flex justify-content-between align-items-center rounded">
                         {{ account.account_type }}
-                        <span class="badge" style="background-color: #13AA52;">${{ account.balance }}</span> <!-- Evergreen -->
+                        <span class="badge" style="background-color: #13AA52;">${{ "%.2f"|format(account.balance) }}</span> <!-- Evergreen -->
                     </li>
                     {% endfor %}
                 </ul>
@@ -176,7 +176,7 @@
                         <label for="deposit-account-select" class="form-label">Select Account</label>
                         <select id="deposit-account-select" class="form-select rounded" required>
                             {% for account in accounts %}
-                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ "%.2f"|format(account.balance) }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -211,7 +211,7 @@
                         <label for="source-account" class="form-label">Source Account</label>
                         <select id="source-account" class="form-select rounded" required>
                             {% for account in accounts %}
-                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ "%.2f"|format(account.balance) }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -219,7 +219,7 @@
                         <label for="destination-account" class="form-label">Destination Account</label>
                         <select id="destination-account" class="form-select rounded" required>
                             {% for account in accounts %}
-                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                            <option value="{{ account._id }}">{{ account.account_type }} - ${{ "%.2f"|format(account.balance) }}</option>
                             {% endfor %}
                         </select>
                     </div>

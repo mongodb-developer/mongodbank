@@ -35,7 +35,7 @@
                             <label for="account-id-velocity" class="form-label">Select Account</label>
                             <select id="account-id-velocity" class="form-select" required>
                                 {% for account in accounts %}
-                                    <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                                    <option value="{{ account._id }}">{{ account.account_type }} - ${{ "%.2f"|format(account.balance) }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -63,7 +63,7 @@
                             <label for="account-id-location" class="form-label">Select Account</label>
                             <select id="account-id-location" class="form-select" required>
                                 {% for account in accounts %}
-                                    <option value="{{ account._id }}">{{ account.account_type }} - ${{ account.balance }}</option>
+                                    <option value="{{ account._id }}">{{ account.account_type }} - ${{ "%.2f"|format(account.balance) }}</option>
                                 {% endfor %}
                             </select>
                         </div>

@@ -152,7 +152,7 @@ def get_account(account_id):
         account['_id'] = str(account['_id'])
         return jsonify({
             'account_type': account.get('account_type'),
-            'balance': account.get('balance')
+            'balance': round(account.get('balance'), 2)
         })
     else:
         return jsonify({'error': 'Account not found'}), 404
@@ -267,7 +267,7 @@ def create_transaction():
     if data['type'] == 'withdrawal' and account['balance'] < amount:
         return jsonify({'error': 'Insufficient funds'}), 400
     
-    new_balance = account['balance'] + amount if data['type'] == 'deposit' else account['balance'] - amount
+    new_balance = round(account['balance'] + amount if data['type'] == 'deposit' else account['balance'] - amount, 2)
     timestamp = datetime.now(timezone.utc)  # Correctly getting the current UTC time
     
     # Initialize fraud flags
@@ -326,7 +326,7 @@ def create_transaction():
     db.transactions.insert_one(transaction)
     db.accounts.update_one({'_id': ObjectId(account_id)}, {'$set': {'balance': new_balance}})
     
-    return jsonify({'success': True, 'new_balance': new_balance, 'fraud_flags': fraud_flags})
+    return jsonify({'success': True, 'new_balance': round(new_balance, 2), 'fraud_flags': fraud_flags})
 
 
 @app.route('/fraud_simulation_dashboard')
