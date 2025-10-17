@@ -23,6 +23,40 @@
                         <button type="button" class="btn btn-info" onclick="showCode('login')">Show Login Logic</button>
                     </div>
                 </form>
+                
+                <!-- Demo User Buttons -->
+                <div class="mt-4">
+                    <h6 class="text-center text-muted mb-3">Demo Users</h6>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button type="button" class="btn btn-outline-success w-100" onclick="fillDemoUser('johndoe', 'password123')">
+                                <small>John Doe<br><span class="text-muted">Business Owner</span></small>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-outline-info w-100" onclick="fillDemoUser('sarahsmith', 'password123')">
+                                <small>Sarah Smith<br><span class="text-muted">Software Engineer</span></small>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-outline-warning w-100" onclick="fillDemoUser('mikejohnson', 'password123')">
+                                <small>Mike Johnson<br><span class="text-muted">Retiree</span></small>
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button type="button" class="btn btn-outline-danger w-100" onclick="fillDemoUser('admin', 'mongodb123')">
+                                <small>Admin User<br><span class="text-muted">Bank Manager</span></small>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                function fillDemoUser(username, password) {
+                    document.getElementById('username').value = username;
+                    document.getElementById('password').value = password;
+                }
+                </script>
             </div>
         </div>
     </div>

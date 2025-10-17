@@ -1797,4 +1797,5 @@ def create_branches():
     return branches
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    from config import Config
+    app.run(debug=True, port=Config.PORT)

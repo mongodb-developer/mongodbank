@@ -9,3 +9,4 @@ class Config:
     GOOGLE_MAPS_API_KEY= os.environ.get('GOOGLE_MAPS_API_KEY')
     GOOGLE_MAPS_MAP_ID= os.environ.get('GOOGLE_MAPS_MAP_ID')
     MONGO_NORMALIZED_URI = os.environ.get('MONGO_NORMALIZED_URI')
+    PORT = int(os.environ.get('PORT', 5001))  # Default to 5001 for local dev
